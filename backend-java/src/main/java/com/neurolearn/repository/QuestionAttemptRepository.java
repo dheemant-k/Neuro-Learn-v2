@@ -14,6 +14,9 @@ public interface QuestionAttemptRepository extends JpaRepository<QuestionAttempt
     List<QuestionAttempt> findByStudentProfileIdOrderByTimestampDesc(Long studentProfileId);
     List<QuestionAttempt> findBySessionId(Long sessionId);
 
+    /** A student's answers on one topic, oldest first — replayed by the difficulty ramp. */
+    List<QuestionAttempt> findByStudentProfileIdAndQuestion_TopicOrderByTimestampAscIdAsc(Long studentProfileId, String topic);
+
     /**
      * Rows of [studentProfileId, topic, count] — correct answers on questions of the given difficulty.
      * Uses the question's difficulty, so attempts from before V9 (no difficulty_served) count too.

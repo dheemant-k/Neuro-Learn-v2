@@ -3,6 +3,7 @@ package com.neurolearn.service;
 import com.neurolearn.dto.StudentClassResponse;
 import com.neurolearn.dto.TeacherClassResponse;
 import com.neurolearn.entity.ClassEnrollment;
+import com.neurolearn.entity.DifficultyStrategy;
 import com.neurolearn.entity.Role;
 import com.neurolearn.entity.SchoolClass;
 import com.neurolearn.entity.StudentProfile;
@@ -67,6 +68,32 @@ public class ClassService {
         User teacher = requireUser(teacherEmail, Role.TEACHER);
         SchoolClass created = classRepository.save(new SchoolClass(teacher, name.trim(), newJoinCode()));
         return toTeacherResponse(created);
+    }
+
+    /** Teacher chooses how difficulty is picked for students in this class (for a pilot: one class per arm). */
+    @Transactional
+    public TeacherClassResponse setDifficultyStrategy(String teacherEmail, Long classId, String strategy) {
+        SchoolClass schoolClass = getOwnedClass(teacherEmail, classId);
+        DifficultyStrategy parsed;
+        try {
+            parsed = DifficultyStrategy.valueOf(strategy.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("strategy must be ADAPTIVE_RAMP, FIXED_RAMP or BKT_THRESHOLDS");
+        }
+        schoolClass.setDifficultyStrategy(parsed);
+        return toTeacherResponse(schoolClass);
+    }
+
+    /**
+     * The strategy for a student: from the class they joined most recently, or ADAPTIVE_RAMP if they
+     * aren't in a class. (For a clean pilot, put each student in one class.)
+     */
+    @Transactional(readOnly = true)
+    public DifficultyStrategy strategyForStudent(Long studentProfileId) {
+        return enrollmentRepository.findByStudentProfileId(studentProfileId).stream()
+                .max(java.util.Comparator.comparing(ClassEnrollment::getJoinedAt))
+                .map(e -> e.getSchoolClass().getDifficultyStrategy())
+                .orElse(DifficultyStrategy.ADAPTIVE_RAMP);
     }
 
     @Transactional
@@ -179,7 +206,8 @@ public class ClassService {
 
     private TeacherClassResponse toTeacherResponse(SchoolClass c) {
         return new TeacherClassResponse(c.getId(), c.getName(), c.getJoinCode(),
-                enrollmentRepository.countBySchoolClassId(c.getId()), c.getCreatedAt());
+                enrollmentRepository.countBySchoolClassId(c.getId()), c.getCreatedAt(),
+                c.getDifficultyStrategy().name());
     }
 
     private StudentClassResponse toStudentResponse(ClassEnrollment e) {

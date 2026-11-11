@@ -51,10 +51,9 @@ class EarnedMasteryIntegrationTest extends IntegrationTestBase {
         assertThat(introSection(student).get("pKnow").asDouble()).isGreaterThanOrEqualTo(0.85);
         assertThat(introSection(student).has("pknow")).isFalse();
 
-        // The engine says what is still needed instead of "Topic Mastered!".
+        // The quiz agrees (the "what's still needed" message for the BKT strategy is in DifficultyStrategyIntegrationTest).
         JsonNode next = getJson("/api/sessions/" + sessionId + "/next-question?topic=intro", student);
         assertThat(next.get("isMastered").asBoolean()).isFalse();
-        assertThat(next.get("adaptiveReason").asText()).contains("answer 2 more level-3 questions correctly");
 
         // One hard answer: still not enough.
         JsonNode oneHard = answer(student, sessionId, hard.get(0).getId(), true);

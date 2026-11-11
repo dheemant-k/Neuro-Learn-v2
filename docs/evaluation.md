@@ -223,9 +223,10 @@ must **not** be used. The engine keeps its default parameters.
   candidate (adaptive ramp, §4.5) and a fix to the mastery badge.
 
 ### 6.2 Needs real data first
-- **Difficulty selection.** The adaptive ramp is the strongest candidate to replace the current rule, but
-  don't switch on simulated evidence alone (the tuned engine showed how a simulated optimum can backfire).
-  Add it behind a setting and compare it with the fixed ramp in a pilot (§7).
+- **Difficulty selection.** ✅ *In the app (2026-11-11):* the adaptive ramp is now the default, chosen per
+  class alongside "fixed ramp" and the original engine (V11, `DifficultyRamp` — the same class the
+  simulator uses, so the app runs exactly the evaluated rule). Every attempt logs which strategy served it.
+  Still to do: a pilot with one class per strategy to check the simulated advantage on real students (§7).
 - **IRT calibration** of item difficulty (needs about 500 respondents for a stable 2PL) — this is what
   the Elo policy assumed it had.
 - **Per-topic BKT parameters** with the fitter here, once each topic has ≥ 30 students.
