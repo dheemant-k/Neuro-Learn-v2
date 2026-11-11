@@ -21,9 +21,14 @@
    still reaches the most mastery. Tuning the engine purely for speed made quitting *worse* (55.8%).
 4. **The BKT fitter works** (recovers known parameters within about ±0.02), but the app's logged data
    (60 answers, 8 students) is **far too small** to fit real parameters.
+5. **Follow-up (§4.5): an "adaptive ramp" is the best all-round policy tested.** Fixed ramp by default,
+   skip ahead after 3 correct in a row, slow down after 2 misses. It beats the current engine in **all six**
+   scenarios, beats the fixed ramp in three (weak starters, learning at own level, frustration), and in
+   the frustration scenario it has both the **most mastery (44.3%) and fewer quits (44.0% vs 52.8%)** than
+   the fixed ramp. It is clearly worse only when learning peaks far above the student's level.
 
-**What to change now:** base "Mastered" on difficulty-aware evidence (§6.1). **What to measure next:**
-real-student difficulty and learning curves in a pilot before re-tuning difficulty selection (§7).
+**Done:** "Mastered" is now earned with hard questions (§6.1). **Next:** a pilot comparing the fixed
+ramp with the adaptive ramp on real students (§7).
 
 ---
 
@@ -38,6 +43,7 @@ All policies choose the level (1 easy, 2 medium, 3 hard) of the next question fo
 | **Tuned engine** | Same BKT, cut-offs **0.20 / 0.60** and *level-aware evidence* (a correct easy answer counts as more guessable: P(G) 0.60 / 0.40 / 0.25 for levels 1/2/3). Chosen by a grid search on a separate training population (§3.4). Evaluation only — not in the app. |
 | **Difficulty-aware Elo** | Running ability estimate updated by how surprising each answer was for that item's difficulty; picks the level with predicted success closest to **50%** (50/60/70% tried on the training population). Mastery claimed when predicted level-3 accuracy ≥ 70%. Evaluation only. *Advantage:* it is given the true item difficulties, as if calibrated with IRT. |
 | **Ramp with remediation** | Fixed ramp, but drop back a level after 2 wrong answers in a row. A teacher's rule of thumb; no tuned parameters. |
+| **Adaptive ramp** *(follow-up, §4.5)* | Fixed ramp by default (up after 5 at a level), but up immediately after 3 correct in a row; 2 wrong in a row restarts the count at the current level; 3 wrong in a row drops back a level. Rules fixed before running; no tuned parameters. |
 | **Random** | Uniformly random level. A floor. |
 
 ---
@@ -94,6 +100,7 @@ Horizon: 30 questions per student, one topic.
 | Tuned engine | 31.9% | 64.1% | 21 | 44.8% | 12 | 1.4% |
 | Difficulty-aware Elo | 27.0% | 60.0% | 21 | 31.2% | 25 | **94.3%** |
 | Ramp with remediation | 11.7% | 48.2% | 24 | **17.8%** | — | — |
+| Adaptive ramp | 30.1% | 69.7% | 21 | 25.3% | — | — |
 | Random | 3.9% | 25.4% | 26 | 41.5% | — | — |
 
 ![Share of students truly mastered over 30 questions](evaluation/mastery_over_time.png)
@@ -111,18 +118,19 @@ almost always early. Only the difficulty-aware estimate claims mastery when it i
 
 Mastered by question 30:
 
-| Scenario | Fixed ramp | Current engine | Tuned engine | Elo | Ramp + remediation | Random |
-|---|---|---|---|---|---|---|
-| Baseline | **73.4%** | 61.2% | 64.1% | 60.0% | 48.2% | 25.4% |
-| Learns best at own level (δ = 0) | **63.1%** | 58.5% | 54.4% | 58.8% | **63.1%** | 32.9% |
-| Learns best well above level (δ = 1) | **69.4%** | 48.6% | 56.9% | 46.5% | 21.2% | 8.7% |
-| Weak starters (μ = −2) | **40.7%** | 34.1% | 28.4% | 24.1% | 28.8% | 7.1% |
-| Strong starters (μ = +0.5) | **97.0%** | 92.2% | 95.1% | 94.8% | 76.9% | 64.9% |
-| Frustration → quitting | **42.3%** | 37.6% | 35.2% | 37.1% | 33.5% | 15.3% |
+| Scenario | Fixed ramp | Current engine | Tuned engine | Elo | Ramp + remediation | Adaptive ramp | Random |
+|---|---|---|---|---|---|---|---|
+| Baseline | **73.4%** | 61.2% | 64.1% | 60.0% | 48.2% | 69.7% | 25.4% |
+| Learns best at own level (δ = 0) | 63.1% | 58.5% | 54.4% | 58.8% | 63.1% | **71.0%** | 32.9% |
+| Learns best well above level (δ = 1) | **69.4%** | 48.6% | 56.9% | 46.5% | 21.2% | 50.9% | 8.7% |
+| Weak starters (μ = −2) | 40.7% | 34.1% | 28.4% | 24.1% | 28.8% | **45.2%** | 7.1% |
+| Strong starters (μ = +0.5) | **97.0%** | 92.2% | 95.1% | 94.8% | 76.9% | 93.5% | 64.9% |
+| Frustration → quitting | 42.3% | 37.6% | 35.2% | 37.1% | 33.5% | **44.3%** | 15.3% |
 
 ![Mastery by scenario](evaluation/mastery_by_scenario.png)
 
-The fixed ramp leads in every scenario. Two things explain it within this model: learning only happens on
+Among the original policies the fixed ramp led in every scenario (the adaptive ramp, §4.5, changes
+that). Two things explain it within this model: learning only happens on
 attempts, so pushing to harder items sooner pays off; and simulated students never get bored or
 discouraged unless quitting is switched on. Strong starters are where adaptivity helps early: the
 current engine has 19% mastered by question 10 vs about 1% for the ramp (see `summary.csv`).
@@ -136,6 +144,7 @@ current engine has 19% mastered by question 10 vs about 1% for the ramp (see `su
 | Tuned engine (selected for speed) | 55.8% | 35.2% |
 | Difficulty-aware Elo | 48.7% | 37.1% |
 | Ramp with remediation | **40.0%** | 33.5% |
+| Adaptive ramp | 44.0% | **44.3%** |
 | Random | 54.9% | 15.3% |
 
 ![Quit rate vs mastery](evaluation/frustration_tradeoff.png)
@@ -145,6 +154,32 @@ are mostly ones who would not have reached mastery anyway, so total mastery stay
 The **tuned engine shows the risk of optimising one number**: cut-offs chosen for speed in the no-quit
 world pushed students harder and gave the *most* quitting here. (Exploratory, not part of the train/test
 protocol: the more conservative 0.30/0.75 level-aware variant had 42.4% quit and 41.1% mastered.)
+
+### 4.5 Follow-up: an adaptive ramp
+
+Results 4.1–4.4 suggested the ramp's strength is *steady progress upward*, and adaptivity's strength is
+*treating fast and struggling students differently* and *preventing discouragement*. The **adaptive
+ramp** combines them (rules in §2). Its rules were written down before it was run and nothing was tuned;
+it was run once on the same test population, and the result is reported whichever way it went.
+
+| | Fixed ramp | Current engine | **Adaptive ramp** |
+|---|---|---|---|
+| Scenarios won vs fixed ramp | — | 0 of 6 | **3 of 6** |
+| Scenarios won vs current engine | 6 of 6 | — | **6 of 6** |
+| Baseline mastered by Q30 | **73.4%** | 61.2% | 69.7% |
+| Weak starters mastered by Q30 | 40.7% | 34.1% | **45.2%** |
+| Frustration: quit / mastered | 52.8% / 42.3% | 46.9% / 37.6% | **44.0% / 44.3%** |
+| Questions that were "too hard" (baseline) | 38.3% | 37.9% | **25.3%** |
+
+- **Best all-round policy tested.** Within 4 points of the fixed ramp where the ramp wins (except "learns
+  best far above level", where it is 18 points behind), and ahead of it where students start weak or can
+  give up. In the frustration scenario it is the only policy better than the fixed ramp on *both* axes.
+- **Gentler.** A third fewer questions the student was more likely to get wrong than right.
+- **Strong starters:** 5.4% mastered by question 10 vs 0.7% for the fixed ramp (the current engine's
+  18.7% is higher still, but it then falls behind).
+- **Caveat:** the idea came from looking at §4.1–4.4, so it is a hypothesis informed by this simulator, not
+  an independent confirmation. It has no mastery estimate of its own; in the app it would pair with
+  `MasteryRule` for the "Mastered" badge.
 
 ---
 
@@ -183,12 +218,14 @@ must **not** be used. The engine keeps its default parameters.
   the student has answered at least 2 level-3 questions correctly in that topic. Better version: a
   difficulty-aware estimate (Elo/IRT, §2). This fixes the most misleading output in the app — it
   affects the student roadmap, the teacher roster and parent report cards.
-- **Report this honestly** in the project write-up: the adaptive engine is explainable and keeps students
-  in a reasonable band, but its advantage over a well-designed fixed sequence is not demonstrated.
+- **Report this honestly** in the project write-up: the original adaptive engine is explainable but its
+  advantage over a well-designed fixed sequence was not demonstrated; the evaluation then led to a better
+  candidate (adaptive ramp, §4.5) and a fix to the mastery badge.
 
 ### 6.2 Needs real data first
-- **Difficulty selection.** Don't re-tune cut-offs on simulated data alone — the tuning result flipped
-  between the no-quit and frustration scenarios. Collect a pilot first (§7), then tune on real logs.
+- **Difficulty selection.** The adaptive ramp is the strongest candidate to replace the current rule, but
+  don't switch on simulated evidence alone (the tuned engine showed how a simulated optimum can backfire).
+  Add it behind a setting and compare it with the fixed ramp in a pilot (§7).
 - **IRT calibration** of item difficulty (needs about 500 respondents for a stable 2PL) — this is what
   the Elo policy assumed it had.
 - **Per-topic BKT parameters** with the fitter here, once each topic has ≥ 30 students.
@@ -206,7 +243,7 @@ must **not** be used. The engine keeps its default parameters.
   only protects against noise, not against wrong assumptions.
 
 A credible next step is a **pilot**: one class, a few weeks, half the students on the fixed ramp and half
-on the adaptive engine (the app already logs the selected option, hints and every adaptive decision since
+on the adaptive ramp (§4.5) (the app already logs the selected option, hints and every adaptive decision since
 V9), with a short pre/post test.
 
 ---

@@ -17,6 +17,7 @@ LABELS = {
     "adaptive_0.20_0.60_levelaware": "Tuned engine (0.20/0.60, level-aware)",
     "elo_target50": "Difficulty-aware Elo (50% target)",
     "ramp_remediation": "Ramp with remediation",
+    "adaptive_ramp": "Adaptive ramp (skip ahead / slow down)",
     "random": "Random level",
 }
 ORDER = list(LABELS)
@@ -26,6 +27,7 @@ COLORS = {
     "adaptive_0.20_0.60_levelaware": "#f2a03d",
     "elo_target50": "#2e9e6b",
     "ramp_remediation": "#8b5cf6",
+    "adaptive_ramp": "#0f766e",
     "random": "#9aa3ad",
 }
 SCENARIOS = {
