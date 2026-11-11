@@ -128,9 +128,9 @@ Full write-up: **[docs/evaluation.md](docs/evaluation.md)** (charts + CSVs in `d
 - **Follow-ups:** (2) classroom pilot (fixed vs adaptive A/B) before re-tuning difficulty selection; (3) IRT calibration after ~500 respondents; (4) simulator can feed DKT experiments later.
 
 ### Phase 6 — Deployment (≈5 h)
-- [ ] `backend-java/Dockerfile` (multi-stage maven → JRE 17), `Frontend/Dockerfile` (build → nginx, proxy `/api`).
-- [ ] Extend `docker-compose.yml` to the full stack + `.env.example`; one command `docker compose up` runs the demo.
-- [ ] Optional: deploy to Render/Railway/Fly for a live URL.
+- [x] `backend-java/Dockerfile` (multi-stage maven → JRE 17), `Frontend/Dockerfile` (build → nginx, proxy `/api`).
+- [x] Extend `docker-compose.yml` to the full stack + `.env.example`; one command `docker compose up` runs the demo. CI builds both images. Guide: [docs/deployment.md](docs/deployment.md).
+- [ ] Optional: deploy to Render/Railway/Fly for a live URL (needs the owner's accounts; steps in the guide).
 
 **Hosting plan if the frontend goes on Vercel** (Vercel runs static sites and short serverless
 functions — it cannot run the always-on Spring Boot JVM or host Postgres):

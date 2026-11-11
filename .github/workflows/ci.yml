@@ -55,3 +55,12 @@ jobs:
       - run: npm ci
       - run: npm run lint -- --max-warnings 0
       - run: npm run build
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Keeps the deployment Dockerfiles working; nothing is pushed anywhere.
+      - name: Build backend + frontend images
+        run: docker compose build
