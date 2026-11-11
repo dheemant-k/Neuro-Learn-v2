@@ -30,7 +30,7 @@ Postgres, so each piece goes where it fits:
 
 | Piece | Host | Setup |
 |---|---|---|
-| Database | **Neon** (or Supabase / Render Postgres) | Create a Postgres 16 database; copy the *pooled* connection details |
+| Database | **Neon** (or Supabase / Render Postgres) | Create a Postgres 16 database; copy the **direct** (non-pooled) connection details: Flyway's migration lock needs a real session, and the app only opens ~5 connections |
 | API | **Render** web service, runtime *Docker* | Root directory `backend-java` (uses its Dockerfile); health check path `/api/health` |
 | Web app | **Vercel** | Root directory `Frontend`, framework *Vite* (build `npm run build`, output `dist`) |
 
@@ -38,7 +38,7 @@ Postgres, so each piece goes where it fits:
 
 | Variable | Value |
 |---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://<neon-host>/<db>?sslmode=require` (replaces `DB_HOST/PORT/NAME`) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://<neon-host>/<db>?sslmode=require` (replaces `DB_HOST/PORT/NAME`). From Neon's `postgresql://user:pass@host/db?...` string keep only host and db; drop `channel_binding` |
 | `DB_USER`, `DB_PASSWORD` | from Neon |
 | `DB_POOL_SIZE` | `5` (free-tier connection limits) |
 | `JWT_SECRET` | 32+ random characters |
@@ -56,8 +56,18 @@ in the image.
 
 ### Before sharing the URL
 
-- **Demo accounts.** Migration V5 seeds `bruce@`, `teacher@` and `parent@neurolearn.com` with the
-  public password `password123`. Change or delete them in the production database first.
+- **Demo accounts.** Migration V5 seeds six accounts (`teacher@`, `parent@`, `bruce@`, `dick@`,
+  `jason@`, `testhero@neurolearn.com`) with the public password `password123`. Give them a new
+  password: hash it locally (`$2y$` hashes from htpasswd work with Spring's BCrypt), then run the
+  UPDATE in Neon's SQL Editor.
+
+  ```bash
+  docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" 'YOUR-NEW-PASSWORD' | tr -d ':\n'
+  ```
+
+  ```sql
+  UPDATE users SET password_hash = '<hash from above>' WHERE email LIKE '%@neurolearn.com';
+  ```
 - **Cold starts.** Render's free tier sleeps after ~15 min idle (first request takes 30–60 s), and
   Neon's free compute also scales to zero. Open the app a minute before a demo.
 - **Gemini key.** Set it only in Render's environment, never in the repo or Vercel; the browser
