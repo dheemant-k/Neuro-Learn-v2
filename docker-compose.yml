@@ -1,23 +1,55 @@
-version: '3.8'
-
+# Local development:  docker compose up -d postgres     (then run backend + frontend yourself)
+# Full demo stack:    cp .env.example .env, set JWT_SECRET, then  docker compose up -d --build
+#                     → http://localhost:3000
 services:
   postgres:
     image: postgres:16-alpine
     container_name: neurolearn-postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: neurolearn
-      POSTGRES_USER: neurolearn
-      POSTGRES_PASSWORD: neurolearn
+      POSTGRES_DB: ${DB_NAME:-neurolearn}
+      POSTGRES_USER: ${DB_USER:-neurolearn}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-neurolearn}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U neurolearn -d neurolearn"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  backend:
+    build: ./backend-java
+    image: neurolearn-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-neurolearn}
+      DB_USER: ${DB_USER:-neurolearn}
+      DB_PASSWORD: ${DB_PASSWORD:-neurolearn}
+      # No default on purpose: the API refuses to start without a 32+ byte secret.
+      JWT_SECRET: ${JWT_SECRET:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      AI_PROVIDER: ${AI_PROVIDER:-fake}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+
+  frontend:
+    build: ./Frontend
+    image: neurolearn-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:80"
 
 volumes:
   postgres_data:

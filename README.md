@@ -33,6 +33,7 @@ cd Frontend && npm install && npm run dev
 - Demo logins (password `password123`): `bruce@neurolearn.com` (student), `teacher@neurolearn.com`, `parent@neurolearn.com`.
 - AI question generation (teacher dashboard → Question Bank) runs on an offline fake by default. For real generation with Google Gemini, start the backend with `AI_PROVIDER=gemini` and `GEMINI_API_KEY=<key from Google AI Studio>` (optional `GEMINI_MODEL`, default `gemini-3.8-flash`). Generated questions stay pending until a teacher approves them.
 - Tests: `cd backend-java && ./mvnw verify` (starts its own throwaway Postgres via Testcontainers — Docker must be running). Frontend checks: `npm run lint && npm run build`. CI runs both on every PR.
+- Whole stack in Docker (no Java/Node needed): `cp .env.example .env`, set `JWT_SECRET`, then `docker compose up -d --build` → `http://localhost:3000`. Cloud hosting (Vercel + Render + Neon): [docs/deployment.md](docs/deployment.md).
 - Roadmap and open work: [FUTURE_WORKFLOW.md](FUTURE_WORKFLOW.md). Older planning notes: [docs/history/](docs/history/).
 
 ---
