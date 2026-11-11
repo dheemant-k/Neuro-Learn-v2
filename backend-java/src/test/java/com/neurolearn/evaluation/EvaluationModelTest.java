@@ -83,6 +83,19 @@ class EvaluationModelTest {
     }
 
     @Test
+    void adaptiveRampSkipsAheadSlowsDownAndDropsBack() {
+        // 3 correct in a row → up immediately (skip ahead), twice.
+        assertThat(levels(DifficultyPolicy.adaptiveRamp(), repeat(true, 7)))
+                .containsExactly(1, 1, 1, 2, 2, 2, 3);
+        // Mixed answers without streaks → plain ramp after 5 at a level.
+        boolean[] mixed = {true, false, true, false, true, true};
+        assertThat(levels(DifficultyPolicy.adaptiveRamp(), mixed)).containsExactly(1, 1, 1, 1, 1, 2);
+        // 2 wrong restarts the count (stays longer); 3 wrong drops back a level.
+        boolean[] struggle = {true, true, true, false, false, false, true};
+        assertThat(levels(DifficultyPolicy.adaptiveRamp(), struggle)).containsExactly(1, 1, 1, 2, 2, 2, 1);
+    }
+
+    @Test
     void adaptiveEnginePolicyUsesTheAppsRule() {
         // First question is always level 1; a run of correct answers raises P(L) and the level.
         List<Integer> climbing = levels(DifficultyPolicy.adaptiveEngine(), repeat(true, 8));

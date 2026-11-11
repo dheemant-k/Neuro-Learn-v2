@@ -125,6 +125,54 @@ public interface DifficultyPolicy {
         };
     }
 
+    /**
+     * Adaptive ramp (rules fixed before it was run — not tuned): the fixed ramp as the default,
+     * plus the two things the simulation showed adaptivity is good at.
+     * <ul>
+     *   <li>Move up after 5 questions at a level (same as the fixed ramp)…</li>
+     *   <li>…or straight away after 3 correct in a row (strong students skip ahead).</li>
+     *   <li>2 wrong in a row: restart the count at this level (slow down, don't demote).</li>
+     *   <li>3 wrong in a row: drop back one level.</li>
+     * </ul>
+     */
+    static DifficultyPolicy adaptiveRamp() {
+        return new DifficultyPolicy() {
+            public String name() { return "adaptive_ramp"; }
+
+            public Session start(long seed) {
+                return new Session() {
+                    int level = 1;
+                    int atLevel = 0;
+                    int rightStreak = 0;
+                    int wrongStreak = 0;
+
+                    public int nextLevel() { return level; }
+
+                    public void observe(int lvl, boolean correct) {
+                        atLevel++;
+                        rightStreak = correct ? rightStreak + 1 : 0;
+                        wrongStreak = correct ? 0 : wrongStreak + 1;
+                        if (wrongStreak >= 3 && level > 1) {
+                            level--;
+                            reset();
+                        } else if (wrongStreak == 2) {
+                            atLevel = 0;               // slow down: stay longer at this level
+                        } else if (level < 3 && (atLevel >= 5 || rightStreak >= 3)) {
+                            level++;
+                            reset();
+                        }
+                    }
+
+                    private void reset() {
+                        atLevel = 0;
+                        rightStreak = 0;
+                        wrongStreak = 0;
+                    }
+                };
+            }
+        };
+    }
+
     /** Uniformly random level — a floor for comparison. */
     static DifficultyPolicy random() {
         return new DifficultyPolicy() {

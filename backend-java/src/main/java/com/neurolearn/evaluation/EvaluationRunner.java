@@ -56,6 +56,7 @@ public final class EvaluationRunner {
                 DifficultyPolicy.adaptiveVariant(TUNED_TO_LEVEL2, TUNED_TO_LEVEL3, TUNED_LEVEL_AWARE),
                 DifficultyPolicy.eloTarget(TUNED_ELO_TARGET),
                 DifficultyPolicy.rampWithRemediation(),
+                DifficultyPolicy.adaptiveRamp(),
                 DifficultyPolicy.random());
     }
 
