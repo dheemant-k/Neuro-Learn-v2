@@ -76,19 +76,9 @@ public interface DifficultyPolicy {
         };
     }
 
-    /** Textbook-style linear progression: 5 easy, 5 medium, then hard. Ignores answers. */
+    /** Textbook-style linear progression: 5 easy, 5 medium, then hard. Ignores answers. Same code as the app. */
     static DifficultyPolicy fixed() {
-        return new DifficultyPolicy() {
-            public String name() { return "fixed"; }
-
-            public Session start(long seed) {
-                return new Session() {
-                    int asked = 0;
-                    public int nextLevel() { return asked < 5 ? 1 : asked < 10 ? 2 : 3; }
-                    public void observe(int level, boolean correct) { asked++; }
-                };
-            }
-        };
+        return rampPolicy("fixed", com.neurolearn.adaptive.DifficultyRamp.Mode.FIXED);
     }
 
     /**
@@ -136,38 +126,19 @@ public interface DifficultyPolicy {
      * </ul>
      */
     static DifficultyPolicy adaptiveRamp() {
+        return rampPolicy("adaptive_ramp", com.neurolearn.adaptive.DifficultyRamp.Mode.ADAPTIVE);
+    }
+
+    /** Wraps the app's {@link com.neurolearn.adaptive.DifficultyRamp} so simulation and app share one implementation. */
+    private static DifficultyPolicy rampPolicy(String name, com.neurolearn.adaptive.DifficultyRamp.Mode mode) {
         return new DifficultyPolicy() {
-            public String name() { return "adaptive_ramp"; }
+            public String name() { return name; }
 
             public Session start(long seed) {
+                com.neurolearn.adaptive.DifficultyRamp ramp = new com.neurolearn.adaptive.DifficultyRamp(mode);
                 return new Session() {
-                    int level = 1;
-                    int atLevel = 0;
-                    int rightStreak = 0;
-                    int wrongStreak = 0;
-
-                    public int nextLevel() { return level; }
-
-                    public void observe(int lvl, boolean correct) {
-                        atLevel++;
-                        rightStreak = correct ? rightStreak + 1 : 0;
-                        wrongStreak = correct ? 0 : wrongStreak + 1;
-                        if (wrongStreak >= 3 && level > 1) {
-                            level--;
-                            reset();
-                        } else if (wrongStreak == 2) {
-                            atLevel = 0;               // slow down: stay longer at this level
-                        } else if (level < 3 && (atLevel >= 5 || rightStreak >= 3)) {
-                            level++;
-                            reset();
-                        }
-                    }
-
-                    private void reset() {
-                        atLevel = 0;
-                        rightStreak = 0;
-                        wrongStreak = 0;
-                    }
+                    public int nextLevel() { return ramp.level(); }
+                    public void observe(int level, boolean correct) { ramp.observe(correct); }
                 };
             }
         };

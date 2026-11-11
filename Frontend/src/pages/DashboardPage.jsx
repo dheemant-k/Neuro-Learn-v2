@@ -6,6 +6,7 @@ import {
   fetchTeacherClasses,
   createTeacherClass,
   removeStudentFromClass,
+  setClassStrategy,
   fetchMyClasses,
   joinClass,
   linkChild,
@@ -204,6 +205,15 @@ function TeacherDashboard() {
     setSelectedClassId(classId);
   };
 
+  const handleStrategy = async (classId, strategy) => {
+    try {
+      await setClassStrategy(classId, strategy);
+      refresh();
+    } catch (e) {
+      window.alert(e.message);
+    }
+  };
+
   const handleCreateClass = async (name) => {
     const created = await createTeacherClass(name);
     setLoading(true);
@@ -240,6 +250,7 @@ function TeacherDashboard() {
       selectedClassId={selectedClassId}
       onSelect={selectClass}
       onCreate={handleCreateClass}
+      onStrategyChange={handleStrategy}
     />
   );
 
@@ -397,7 +408,14 @@ function TeacherDashboard() {
 }
 
 // Class switcher + join codes + "create class" form for the teacher view.
-function ClassPanel({ classes, selectedClassId, onSelect, onCreate }) {
+// How each class's next question difficulty is chosen (docs/evaluation.md §4.5).
+const STRATEGIES = {
+  ADAPTIVE_RAMP: { label: "Adaptive ramp", hint: "Recommended. Steady ramp; strong students skip ahead, struggling ones slow down." },
+  FIXED_RAMP: { label: "Fixed ramp", hint: "5 questions per level regardless of answers — the comparison group for a pilot." },
+  BKT_THRESHOLDS: { label: "Original engine", hint: "Bayesian P(L) cut-offs (the first version of NeuroLearn's engine)." },
+};
+
+function ClassPanel({ classes, selectedClassId, onSelect, onCreate, onStrategyChange }) {
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState(null); // { type: "success"|"error", msg }
@@ -464,10 +482,31 @@ function ClassPanel({ classes, selectedClassId, onSelect, onCreate }) {
               <div className="text-xs text-slate-400">
                 Code <span className="font-mono text-yellow-300 tracking-widest">{c.joinCode}</span> · {c.studentCount} student{c.studentCount === 1 ? "" : "s"}
               </div>
+              <div className="text-[11px] text-teal-300/80">{STRATEGIES[c.difficultyStrategy]?.label || c.difficultyStrategy}</div>
             </button>
           ))}
         </div>
       )}
+
+      {selectedClassId && classes.some((c) => c.id === selectedClassId) && (() => {
+        const cls = classes.find((c) => c.id === selectedClassId);
+        return (
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+            <label htmlFor="class-strategy" className="text-slate-400">Question difficulty for <span className="text-slate-200">{cls.name}</span>:</label>
+            <select
+              id="class-strategy"
+              value={cls.difficultyStrategy}
+              onChange={(e) => onStrategyChange(cls.id, e.target.value)}
+              className="px-3 py-2 rounded-xl border border-[rgba(48,68,105,0.8)] bg-[rgba(13,26,58,0.55)] text-sm text-slate-200 focus:outline-none focus:border-sky-500/60"
+            >
+              {Object.entries(STRATEGIES).map(([key, s]) => (
+                <option key={key} value={key}>{s.label}</option>
+              ))}
+            </select>
+            <span className="text-xs text-slate-500">{STRATEGIES[cls.difficultyStrategy]?.hint}</span>
+          </div>
+        );
+      })()}
     </div>
   );
 }

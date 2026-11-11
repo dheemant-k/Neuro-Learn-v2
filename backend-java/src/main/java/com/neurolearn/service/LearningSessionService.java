@@ -3,6 +3,8 @@ package com.neurolearn.service;
 import com.neurolearn.adaptive.AdaptiveDecision;
 import com.neurolearn.adaptive.AdaptiveEngineService;
 import com.neurolearn.adaptive.BktUpdateResult;
+import com.neurolearn.adaptive.DifficultyAction;
+import com.neurolearn.adaptive.DifficultyRamp;
 import com.neurolearn.dto.*;
 import com.neurolearn.entity.*;
 import com.neurolearn.exception.ForbiddenException;
@@ -27,6 +29,7 @@ public class LearningSessionService {
     private final AdaptiveEngineService adaptiveEngineService;
     private final SessionHintEventRepository hintRepository;
     private final MasteryRule masteryRule;
+    private final ClassService classService;
 
     /** With two options left after a 50:50, a blind guess is right half the time. */
     static final double FIFTY_FIFTY_GUESS_PROBABILITY = 0.5;
@@ -41,7 +44,8 @@ public class LearningSessionService {
             UserRepository userRepository,
             AdaptiveEngineService adaptiveEngineService,
             SessionHintEventRepository hintRepository,
-            MasteryRule masteryRule
+            MasteryRule masteryRule,
+            ClassService classService
     ) {
         this.sessionRepository = sessionRepository;
         this.attemptRepository = attemptRepository;
@@ -52,6 +56,7 @@ public class LearningSessionService {
         this.adaptiveEngineService = adaptiveEngineService;
         this.hintRepository = hintRepository;
         this.masteryRule = masteryRule;
+        this.classService = classService;
     }
 
     private StudentProfile getOrCreateProfileForEmail(String userEmail) {
@@ -129,9 +134,31 @@ public class LearningSessionService {
         TopicProgress tp = topicProgressRepository.findByStudentProfileIdAndTopic(profile.getId(), topic).orElse(null);
         double currentPKnow = (tp != null && tp.getPKnow() != null) ? tp.getPKnow() : 0.20;
 
-        // Evaluate next question difficulty via Bayesian Knowledge Tracing
+        // BKT always runs: it provides P(L) for the mastery rule and dashboards.
         AdaptiveDecision decision = adaptiveEngineService.evaluateBkt(currentPKnow, lastDifficulty, count);
-        int targetDifficulty = decision.nextDifficulty();
+
+        // Difficulty comes from the student's class strategy (default: adaptive ramp, docs/evaluation.md §4.5).
+        DifficultyStrategy strategy = classService.strategyForStudent(profile.getId());
+        int targetDifficulty;
+        String action;
+        String reason;
+        if (strategy == DifficultyStrategy.BKT_THRESHOLDS) {
+            targetDifficulty = decision.nextDifficulty();
+            action = decision.action().name();
+            reason = decision.reason();
+        } else {
+            // Replays this student's whole history on the topic, so progress carries across sessions.
+            List<QuestionAttempt> history = attemptRepository
+                    .findByStudentProfileIdAndQuestion_TopicOrderByTimestampAscIdAsc(profile.getId(), topic);
+            DifficultyRamp ramp = DifficultyRamp.replay(
+                    strategy == DifficultyStrategy.FIXED_RAMP ? DifficultyRamp.Mode.FIXED : DifficultyRamp.Mode.ADAPTIVE,
+                    history.stream().map(QuestionAttempt::getCorrect).toList());
+            targetDifficulty = ramp.level();
+            int previous = history.isEmpty() ? targetDifficulty : history.get(history.size() - 1).getQuestion().getDifficulty();
+            action = (targetDifficulty > previous ? DifficultyAction.INCREASE
+                    : targetDifficulty < previous ? DifficultyAction.DECREASE : DifficultyAction.MAINTAIN).name();
+            reason = ramp.reason();
+        }
 
         // Find questions matching topic, targetDifficulty, and characterTheme
         List<Question> candidates;
@@ -178,8 +205,7 @@ public class LearningSessionService {
         // P(L) alone isn't mastery: it must also be earned on hard questions (MasteryRule).
         long hardCorrect = masteryRule.hardCorrect(profile.getId(), topic);
         boolean mastered = MasteryRule.isMastered(decision.pKnow(), hardCorrect);
-        String reason = decision.reason();
-        if (decision.isMastered() && !mastered) {
+        if (strategy == DifficultyStrategy.BKT_THRESHOLDS && decision.isMastered() && !mastered) {
             long needed = MasteryRule.hardCorrectStillNeeded(hardCorrect);
             reason = String.format("High knowledge P(L)=%d%% (>=85%%). Level 3 challenge: answer %d more level-3 question%s correctly to earn Mastered.",
                     Math.round(decision.pKnow() * 100), needed, needed == 1 ? "" : "s");
@@ -187,14 +213,14 @@ public class LearningSessionService {
 
         if (chosen != null) {
             // Remember why this question was served; copied onto the attempt when it's answered.
-            session.recordServedQuestion(chosen.getId(), decision.action().name(), reason);
+            session.recordServedQuestion(chosen.getId(), action, reason, strategy.name());
             sessionRepository.save(session);
         }
 
         return new NextQuestionResponse(
                 QuestionResponse.forStudent(chosen),
                 targetDifficulty,
-                decision.action().name(),
+                action,
                 reason,
                 count + 1,
                 decision.pKnow(),
@@ -236,6 +262,7 @@ public class LearningSessionService {
         if (question.getId().equals(session.getLastQuestionId())) {
             attempt.setAdaptiveAction(session.getLastAdaptiveAction());
             attempt.setAdaptiveReason(session.getLastAdaptiveReason());
+            attempt.setDifficultyStrategy(session.getLastDifficultyStrategy());
         }
         attempt.setResponseTimeMs(request.getResponseTimeMs() != null ? request.getResponseTimeMs() : 0L);
         attempt.setAttemptNumber(request.getAttemptNumber() != null ? request.getAttemptNumber() : 1);

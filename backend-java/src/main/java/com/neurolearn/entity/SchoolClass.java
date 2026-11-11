@@ -25,6 +25,10 @@ public class SchoolClass {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "difficulty_strategy", nullable = false, length = 20)
+    private DifficultyStrategy difficultyStrategy = DifficultyStrategy.ADAPTIVE_RAMP;
+
     protected SchoolClass() {
     }
 
@@ -47,4 +51,6 @@ public class SchoolClass {
     public void setName(String name) { this.name = name; }
     public String getJoinCode() { return joinCode; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public DifficultyStrategy getDifficultyStrategy() { return difficultyStrategy; }
+    public void setDifficultyStrategy(DifficultyStrategy difficultyStrategy) { this.difficultyStrategy = difficultyStrategy; }
 }

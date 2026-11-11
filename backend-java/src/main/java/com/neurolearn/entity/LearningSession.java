@@ -36,6 +36,9 @@ public class LearningSession {
     @Column(name = "last_adaptive_reason", columnDefinition = "TEXT")
     private String lastAdaptiveReason;
 
+    @Column(name = "last_difficulty_strategy", length = 20)
+    private String lastDifficultyStrategy;
+
     public LearningSession() {
     }
 
@@ -43,10 +46,13 @@ public class LearningSession {
     public String getLastAdaptiveAction() { return lastAdaptiveAction; }
     public String getLastAdaptiveReason() { return lastAdaptiveReason; }
 
-    public void recordServedQuestion(Long questionId, String action, String reason) {
+    public String getLastDifficultyStrategy() { return lastDifficultyStrategy; }
+
+    public void recordServedQuestion(Long questionId, String action, String reason, String strategy) {
         this.lastQuestionId = questionId;
         this.lastAdaptiveAction = action;
         this.lastAdaptiveReason = reason;
+        this.lastDifficultyStrategy = strategy;
     }
 
     public LearningSession(Long id, StudentProfile studentProfile, OffsetDateTime startTime, OffsetDateTime endTime, Integer questionsAttempted, Double accuracy) {

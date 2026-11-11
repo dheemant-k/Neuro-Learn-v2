@@ -52,6 +52,10 @@ public class QuestionAttempt {
     @Column(name = "difficulty_served")
     private Integer difficultyServed;
 
+    /** Which DifficultyStrategy served the question (null before V11 or when not engine-served). */
+    @Column(name = "difficulty_strategy", length = 20)
+    private String difficultyStrategy;
+
     public QuestionAttempt() {
     }
 
@@ -64,6 +68,8 @@ public class QuestionAttempt {
     public String getAdaptiveReason() { return adaptiveReason; }
     public void setAdaptiveReason(String adaptiveReason) { this.adaptiveReason = adaptiveReason; }
     public Integer getDifficultyServed() { return difficultyServed; }
+    public String getDifficultyStrategy() { return difficultyStrategy; }
+    public void setDifficultyStrategy(String difficultyStrategy) { this.difficultyStrategy = difficultyStrategy; }
     public void setDifficultyServed(Integer difficultyServed) { this.difficultyServed = difficultyServed; }
 
     public QuestionAttempt(Long id, StudentProfile studentProfile, Question question, LearningSession session, Boolean correct, Long responseTimeMs, Integer attemptNumber, OffsetDateTime timestamp) {

@@ -1,6 +1,7 @@
 package com.neurolearn.controller;
 
 import com.neurolearn.dto.CreateClassRequest;
+import com.neurolearn.dto.SetStrategyRequest;
 import com.neurolearn.dto.DashboardResponse;
 import com.neurolearn.dto.TeacherAnalyticsResponse;
 import com.neurolearn.dto.TeacherClassResponse;
@@ -60,6 +61,16 @@ public class TeacherController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(classService.createClass(userDetails.getUsername(), request.name()));
+    }
+
+    /** Choose how difficulty is picked for this class: ADAPTIVE_RAMP (default), FIXED_RAMP or BKT_THRESHOLDS. */
+    @PutMapping("/classes/{classId}/strategy")
+    public ResponseEntity<TeacherClassResponse> setStrategy(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long classId,
+            @Valid @RequestBody SetStrategyRequest request
+    ) {
+        return ResponseEntity.ok(classService.setDifficultyStrategy(userDetails.getUsername(), classId, request.strategy()));
     }
 
     @DeleteMapping("/classes/{classId}/students/{studentProfileId}")

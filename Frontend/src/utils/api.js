@@ -161,6 +161,11 @@ export async function createTeacherClass(name) {
   return post("/teacher/classes", { name });
 }
 
+// strategy: ADAPTIVE_RAMP | FIXED_RAMP | BKT_THRESHOLDS — how difficulty is chosen for the class
+export async function setClassStrategy(classId, strategy) {
+  return put(`/teacher/classes/${classId}/strategy`, { strategy });
+}
+
 export async function removeStudentFromClass(classId, studentProfileId) {
   return del(`/teacher/classes/${classId}/students/${studentProfileId}`);
 }
