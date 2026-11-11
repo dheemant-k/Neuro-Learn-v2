@@ -27,6 +27,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Optional extras from .env, e.g. SPRING_DATASOURCE_URL/USERNAME/PASSWORD to use a hosted
+    # database such as Neon instead of the local postgres container (they override DB_*).
+    env_file:
+      - path: .env
+        required: false
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
