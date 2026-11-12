@@ -102,12 +102,23 @@ public class TeacherAnalyticsResponse {
         private Double pKnow;
         private Integer questionsAttempted;
         private String status;
+        /** Topics this student has answered in, and how many of those meet {@code MasteryRule}. */
+        private Integer topicsPractised;
+        private Integer topicsMastered;
 
         public StudentRosterItem() {}
 
         public StudentRosterItem(Long studentProfileId, Long userId, String name, String email,
                                  Integer level, Integer totalXp, Double accuracy, Double pKnow,
                                  Integer questionsAttempted, String status) {
+            this(studentProfileId, userId, name, email, level, totalXp, accuracy, pKnow, questionsAttempted, status, 0, 0);
+        }
+
+        public StudentRosterItem(Long studentProfileId, Long userId, String name, String email,
+                                 Integer level, Integer totalXp, Double accuracy, Double pKnow,
+                                 Integer questionsAttempted, String status, Integer topicsPractised, Integer topicsMastered) {
+            this.topicsPractised = topicsPractised;
+            this.topicsMastered = topicsMastered;
             this.studentProfileId = studentProfileId;
             this.userId = userId;
             this.name = name;
@@ -144,6 +155,12 @@ public class TeacherAnalyticsResponse {
         @com.fasterxml.jackson.annotation.JsonProperty("pKnow")
         public Double getPKnow() { return pKnow; }
         public void setPKnow(Double pKnow) { this.pKnow = pKnow; }
+
+        public Integer getTopicsPractised() { return topicsPractised; }
+        public void setTopicsPractised(Integer topicsPractised) { this.topicsPractised = topicsPractised; }
+
+        public Integer getTopicsMastered() { return topicsMastered; }
+        public void setTopicsMastered(Integer topicsMastered) { this.topicsMastered = topicsMastered; }
 
         public Integer getQuestionsAttempted() { return questionsAttempted; }
         public void setQuestionsAttempted(Integer questionsAttempted) { this.questionsAttempted = questionsAttempted; }

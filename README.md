@@ -1091,7 +1091,7 @@ Where:
 - **\( P(G) = 0.25 \)**: Guess probability (correct answer despite not knowing the skill, 4-choice MCQ).
 - **\( P(S) = 0.10 \)**: Slip probability (incorrect answer despite knowing the skill).
 - **Mastery Threshold**: \( P(L) \ge 0.85 \) (Bloom's Mastery Learning Criterion). Shown as "Mastered" on dashboards.
-- **Section Unlock Threshold**: \( P(L) \ge 0.40 \) *or* 3 correct answers. Deliberately lower than mastery so a student can move on to the next roadmap section before fully mastering the current one; mastery keeps being tracked.
+- **Section Unlock Threshold**: at least 3 answers, and \( P(L) \ge 0.50 \) *or* 3 correct answers. Deliberately lower than mastery so a student can move on to the next roadmap section before fully mastering the current one; mastery keeps being tracked.
 
 These values live in `BktParameters.defaultParameters()` and `ProgressService`; keep this list in sync with the code.
 

@@ -343,6 +343,9 @@ Both are simulations; a two-class pilot design is ready (evaluation.md §7.1).
 
 ## 9. Data model
 
+For every column, who writes and reads it, all metrics and their formulas, and more viva questions,
+see [DATABASE_GUIDE.md](DATABASE_GUIDE.md).
+
 | Table | Holds | Added in |
 |---|---|---|
 | `users` | name, email, BCrypt hash, role (STUDENT / TEACHER / PARENT) | V1 |
@@ -432,7 +435,8 @@ approval. Students can only ever be served APPROVED questions; that filter is in
 
 **Q: Can a student cheat?**
 The answer is never sent to the browser before submitting; grading happens on the server; sessions are
-checked for ownership; hints are recorded and can't be used after answering.
+checked for ownership; hints are recorded and can't be used after answering. The boss-victory bonus is
+checked against the graded answers in that boss session and paid at most once per session.
 
 **Q: How does the system decide the next question's difficulty?**
 Walk through §5.2: replay the student's history in the topic through the ramp; 5 questions per level,

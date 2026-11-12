@@ -30,11 +30,18 @@ public class ProgressController {
 
     @PostMapping("/boss-victory")
     public ResponseEntity<ProgressResponse> recordBossVictory(
-            @RequestBody(required = false) Map<String, String> body,
+            @RequestBody(required = false) Map<String, Object> body,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        String bossTopic = body != null && body.get("bossTopic") != null ? body.get("bossTopic") : "final_boss";
-        String chapterId = body != null && body.get("chapterId") != null ? body.get("chapterId") : "linear_eq_2var";
-        return ResponseEntity.ok(progressService.awardBossDefeatBonus(userDetails.getUsername(), bossTopic, chapterId));
+        Map<String, Object> b = body != null ? body : Map.of();
+        String bossTopic = b.get("bossTopic") != null ? b.get("bossTopic").toString() : "final_boss";
+        String chapterId = b.get("chapterId") != null ? b.get("chapterId").toString() : "linear_eq_2var";
+        Long sessionId;
+        try {
+            sessionId = b.get("sessionId") != null ? Long.valueOf(b.get("sessionId").toString()) : null;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("sessionId must be a number");
+        }
+        return ResponseEntity.ok(progressService.awardBossDefeatBonus(userDetails.getUsername(), sessionId, bossTopic, chapterId));
     }
 }

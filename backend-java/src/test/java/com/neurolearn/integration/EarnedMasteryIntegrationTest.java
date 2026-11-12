@@ -102,7 +102,36 @@ class EarnedMasteryIntegrationTest extends IntegrationTestBase {
         answer(student, sessionId, hard.get(1).getId(), true);
 
         analytics = getJson("/api/teacher/analytics", teacher);
-        assertThat(analytics.get("studentRoster").get(0).get("status").asText()).isEqualTo("Mastered");
+        JsonNode row = analytics.get("studentRoster").get(0);
+        assertThat(row.get("status").asText()).isEqualTo("Mastered");
+        assertThat(row.get("topicsMastered").asInt()).isEqualTo(1);
+        assertThat(row.get("topicsPractised").asInt()).isEqualTo(1);
         assertThat(analytics.get("topicBottlenecks").get(0).get("studentsMastered").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void rosterDoesNotAddUpHardAnswersFromDifferentTopics() throws Exception {
+        String teacher = registerFresh("TEACHER");
+        String created = mvc.perform(authed(jsonPost("/api/teacher/classes", Map.of("name", "Cross-topic check")), teacher))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String code = json.readTree(created).get("joinCode").asText();
+        String student = registerFresh("STUDENT");
+        postJson("/api/student/classes/join", student, Map.of("joinCode", code));
+
+        // High P(L) in two topics, but only ONE correct level-3 answer in each. Summed across topics that
+        // is 2, which the old roster rule counted as Mastered; per topic, neither is mastered.
+        for (String topic : List.of("graphing", "substitution")) {
+            long sessionId = postJson("/api/sessions/start", student, Map.of("topic", topic)).get("id").asLong();
+            List<Question> easy = questionRepository.findByTopicAndDifficulty(topic, 1);
+            for (int i = 0; i < 3; i++) answer(student, sessionId, easy.get(i).getId(), true);
+            answer(student, sessionId, questionRepository.findByTopicAndDifficulty(topic, 3).get(0).getId(), true);
+        }
+
+        JsonNode row = getJson("/api/teacher/analytics", teacher).get("studentRoster").get(0);
+        assertThat(row.get("pKnow").asDouble()).isGreaterThanOrEqualTo(0.85);
+        assertThat(row.get("status").asText()).isEqualTo("On Track");
+        assertThat(row.get("topicsMastered").asInt()).isZero();
+        assertThat(row.get("topicsPractised").asInt()).isEqualTo(2);
     }
 }

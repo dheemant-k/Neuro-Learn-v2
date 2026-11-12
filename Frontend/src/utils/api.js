@@ -130,8 +130,9 @@ export async function fetchProgress(chapterId = "linear_eq_2var") {
   return get(`/progress${query}`);
 }
 
-export async function claimBossVictory(bossTopic = "final_boss", chapterId = "linear_eq_2var") {
-  return post("/progress/boss-victory", { bossTopic, chapterId });
+// The server pays the bonus only if this session's graded boss answers show a win, once per session.
+export async function claimBossVictory({ sessionId, bossTopic = "final_boss", chapterId = "linear_eq_2var" }) {
+  return post("/progress/boss-victory", { sessionId, bossTopic, chapterId });
 }
 
 // -------------------------------------------------------------
