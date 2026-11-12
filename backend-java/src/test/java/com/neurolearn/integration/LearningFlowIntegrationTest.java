@@ -126,16 +126,53 @@ class LearningFlowIntegrationTest extends IntegrationTestBase {
         }
     }
 
+    /** Answers {@code correct} boss questions right and {@code wrong} wrong in a fresh boss session. */
+    private long fightBoss(String token, int correct, int wrong) throws Exception {
+        long sessionId = postJson("/api/sessions/start", token, Map.of("topic", "final_boss")).get("id").asLong();
+        JsonNode bossQuestions = getJson("/api/questions?topic=final_boss", token);
+        assertThat(bossQuestions.size()).isGreaterThanOrEqualTo(correct + wrong);
+        int i = 0;
+        for (; i < correct; i++) answer(token, sessionId, bossQuestions.get(i).get("id").asLong(), true);
+        for (int j = 0; j < wrong; j++, i++) answer(token, sessionId, bossQuestions.get(i).get("id").asLong(), false);
+        return sessionId;
+    }
+
+    private int xp(String token) throws Exception {
+        return getJson("/api/progress", token).get("totalXp").asInt();
+    }
+
     @Test
-    void bossVictoryOnlyRewardsTheCaller() throws Exception {
-        String student = login(STUDENT);
-        int otherXpBefore = getJson("/api/dashboard", login(STUDENT_2)).get("total_xp").asInt();
-        int xpBefore = getJson("/api/progress", student).get("totalXp").asInt();
+    void bossBonusIsPaidOnlyForAWinTheServerGraded() throws Exception {
+        String student = registerFresh("STUDENT");
 
-        JsonNode after = postJson("/api/progress/boss-victory", student,
-                Map.of("bossTopic", "final_boss", "chapterId", "linear_eq_2var"));
+        // No session, or a session with no boss answers: nothing to verify, no bonus.
+        assertThat(statusOf(jsonPost("/api/progress/boss-victory", Map.of("bossTopic", "final_boss")), student)).isEqualTo(400);
+        long empty = postJson("/api/sessions/start", student, Map.of("topic", "final_boss")).get("id").asLong();
+        assertThat(statusOf(jsonPost("/api/progress/boss-victory", Map.of("sessionId", empty, "bossTopic", "final_boss")), student)).isEqualTo(400);
 
-        assertThat(after.get("totalXp").asInt()).isEqualTo(xpBefore + 100);
-        assertThat(getJson("/api/dashboard", login(STUDENT_2)).get("total_xp").asInt()).isEqualTo(otherXpBefore);
+        // Lost fight (3 misses): no bonus.
+        long lost = fightBoss(student, 4, 3);
+        int beforeLost = xp(student);
+        assertThat(statusOf(jsonPost("/api/progress/boss-victory", Map.of("sessionId", lost, "bossTopic", "final_boss")), student)).isEqualTo(400);
+        assertThat(xp(student)).isEqualTo(beforeLost);
+
+        // Won fight: +100 once; asking again changes nothing.
+        long won = fightBoss(student, 4, 1);
+        int beforeWin = xp(student);
+        JsonNode after = postJson("/api/progress/boss-victory", student, Map.of("sessionId", won, "bossTopic", "final_boss"));
+        assertThat(after.get("totalXp").asInt()).isEqualTo(beforeWin + 100);
+        JsonNode again = postJson("/api/progress/boss-victory", student, Map.of("sessionId", won, "bossTopic", "final_boss"));
+        assertThat(again.get("totalXp").asInt()).isEqualTo(beforeWin + 100);
+    }
+
+    @Test
+    void bossBonusCannotBeClaimedWithSomeoneElsesSessionOrForANonBossTopic() throws Exception {
+        String winner = registerFresh("STUDENT");
+        String other = registerFresh("STUDENT");
+        long won = fightBoss(winner, 4, 0);
+
+        assertThat(statusOf(jsonPost("/api/progress/boss-victory", Map.of("sessionId", won, "bossTopic", "final_boss")), other)).isEqualTo(403);
+        assertThat(statusOf(jsonPost("/api/progress/boss-victory", Map.of("sessionId", won, "bossTopic", "intro")), winner)).isEqualTo(400);
+        assertThat(xp(other)).isZero();
     }
 }

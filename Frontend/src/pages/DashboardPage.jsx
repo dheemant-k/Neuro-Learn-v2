@@ -360,6 +360,11 @@ function TeacherDashboard() {
                         s.status === "On Track" ? "bg-sky-500/20 text-sky-300 border border-sky-500/40" :
                         "bg-rose-500/20 text-rose-300 border border-rose-500/40"
                       }`}>{s.status}</span>
+                      {s.topicsPractised > 0 && (
+                        <div className="text-[11px] text-slate-500 mt-1 whitespace-nowrap">
+                          {s.topicsMastered}/{s.topicsPractised} topics mastered
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center whitespace-nowrap">
                       <button

@@ -2,6 +2,8 @@ package com.neurolearn.service;
 
 import com.neurolearn.dto.ProgressResponse;
 import com.neurolearn.entity.*;
+import com.neurolearn.exception.ForbiddenException;
+import com.neurolearn.exception.NotFoundException;
 import com.neurolearn.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,27 +38,50 @@ public class ProgressService {
     private final StudentProfileRepository profileRepository;
     private final TopicProgressRepository topicProgressRepository;
     private final MasteryRule masteryRule;
+    private final LearningSessionRepository sessionRepository;
+    private final QuestionAttemptRepository attemptRepository;
 
     public ProgressService(
             UserRepository userRepository,
             StudentProfileRepository profileRepository,
             TopicProgressRepository topicProgressRepository,
-            MasteryRule masteryRule
+            MasteryRule masteryRule,
+            LearningSessionRepository sessionRepository,
+            QuestionAttemptRepository attemptRepository
     ) {
         this.userRepository = userRepository;
         this.profileRepository = profileRepository;
         this.topicProgressRepository = topicProgressRepository;
         this.masteryRule = masteryRule;
+        this.sessionRepository = sessionRepository;
+        this.attemptRepository = attemptRepository;
     }
 
-    /** Section counts as completed (unlocks the next one) — deliberately lower than mastery. */
-    static final double SECTION_UNLOCK_P_KNOW = 0.40;
+    /**
+     * A section counts as completed (unlocks the next one) after at least {@value #SECTION_MIN_ANSWERS} answers,
+     * with P(L) of at least {@value #SECTION_UNLOCK_P_KNOW} or {@value #SECTION_UNLOCK_CORRECT} correct.
+     * Deliberately easier than mastery, but no longer reachable with one lucky answer (one correct answer
+     * alone takes P(L) from 0.20 to 0.57).
+     */
+    static final int SECTION_MIN_ANSWERS = 3;
+    static final double SECTION_UNLOCK_P_KNOW = 0.50;
     static final int SECTION_UNLOCK_CORRECT = 3;
     /** Boss opens after this many completed sections (or all of them, for short chapters). */
     static final int BOSS_UNLOCK_SECTIONS = 3;
 
     static boolean isSectionCompleted(double pKnow, int attempts, int correct) {
-        return pKnow >= SECTION_UNLOCK_P_KNOW || (attempts >= 1 && correct >= SECTION_UNLOCK_CORRECT);
+        return attempts >= SECTION_MIN_ANSWERS && (pKnow >= SECTION_UNLOCK_P_KNOW || correct >= SECTION_UNLOCK_CORRECT);
+    }
+
+    /** The boss topics; a victory bonus can only be claimed for one of these. */
+    static final Set<String> BOSS_TOPICS = Set.of("final_boss", "quad_final_boss");
+    /** The fight is won with 4 hits (the 5th only finishes the animation) and lost on the 3rd miss. */
+    static final int BOSS_WIN_CORRECT = 4;
+    static final int BOSS_LOSE_WRONG = 3;
+    static final int BOSS_BONUS_XP = 100;
+
+    static boolean isBossWon(long correct, long wrong) {
+        return correct >= BOSS_WIN_CORRECT && wrong < BOSS_LOSE_WRONG;
     }
 
 
@@ -145,45 +170,51 @@ public class ProgressService {
         );
     }
 
+    /**
+     * Pays the boss-victory bonus, but only for a fight the server can see was won: the session must belong to
+     * the caller and contain at least {@value #BOSS_WIN_CORRECT} correct boss answers and fewer than
+     * {@value #BOSS_LOSE_WRONG} wrong ones, all graded on the server. Paid at most once per session; asking
+     * again returns the progress unchanged. The answers themselves already updated XP and P(L) as they came in.
+     */
     @Transactional
-    public ProgressResponse awardBossDefeatBonus(String userEmail) {
-        return awardBossDefeatBonus(userEmail, "final_boss", "linear_eq_2var");
-    }
-
-    @Transactional
-    public ProgressResponse awardBossDefeatBonus(String userEmail, String bossTopic, String chapterId) {
+    public ProgressResponse awardBossDefeatBonus(String userEmail, Long sessionId, String bossTopic, String chapterId) {
         StudentProfile profile = getProfileForEmail(userEmail);
         if (profile == null) {
+            throw new ForbiddenException("Only student accounts can claim a boss victory");
+        }
+        if (sessionId == null) {
+            throw new IllegalArgumentException("sessionId is required");
+        }
+        String topic = bossTopic == null || bossTopic.isBlank() ? "final_boss" : bossTopic.trim();
+        if (!BOSS_TOPICS.contains(topic)) {
+            throw new IllegalArgumentException("bossTopic must be one of " + new TreeSet<>(BOSS_TOPICS));
+        }
+        LearningSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException("Session not found: " + sessionId));
+        if (!session.getStudentProfile().getId().equals(profile.getId())) {
+            throw new ForbiddenException("This session belongs to another student");
+        }
+        if (session.getBossBonusAwardedAt() != null) {
             return getProgress(userEmail, chapterId);
         }
 
-        int bonusXp = 100;
-        int currentXp = profile.getTotalXp() != null ? profile.getTotalXp() : 0;
-        int newXp = currentXp + bonusXp;
+        List<QuestionAttempt> bossAnswers = attemptRepository.findBySessionId(sessionId).stream()
+                .filter(a -> topic.equals(a.getQuestion().getTopic()))
+                .toList();
+        long correct = bossAnswers.stream().filter(QuestionAttempt::getCorrect).count();
+        long wrong = bossAnswers.size() - correct;
+        if (!isBossWon(correct, wrong)) {
+            throw new IllegalArgumentException(String.format(
+                    "No boss victory in this session: %d correct and %d wrong boss answers (a win needs %d correct and fewer than %d wrong)",
+                    correct, wrong, BOSS_WIN_CORRECT, BOSS_LOSE_WRONG));
+        }
+
+        int newXp = (profile.getTotalXp() != null ? profile.getTotalXp() : 0) + BOSS_BONUS_XP;
         profile.setTotalXp(newXp);
         profile.setCurrentLevel((newXp / 100) + 1);
         profileRepository.save(profile);
-
-        String topicKey = (bossTopic != null && !bossTopic.isBlank()) ? bossTopic : "final_boss";
-
-        // Mark boss progress as completed and mastered
-        TopicProgress bossTp = topicProgressRepository.findByStudentProfileIdAndTopic(profile.getId(), topicKey)
-                .orElseGet(() -> {
-                    TopicProgress tp = new TopicProgress();
-                    tp.setStudentProfile(profile);
-                    tp.setTopic(topicKey);
-                    tp.setAttempts(0);
-                    tp.setCorrectCount(0);
-                    tp.setMasteryScore(0.0);
-                    tp.setPKnow(0.20);
-                    return tp;
-                });
-
-        bossTp.setAttempts(bossTp.getAttempts() + 5);
-        bossTp.setCorrectCount(bossTp.getCorrectCount() + 5);
-        bossTp.setPKnow(0.95);
-        bossTp.setMasteryScore(100.0);
-        topicProgressRepository.save(bossTp);
+        session.setBossBonusAwardedAt(java.time.OffsetDateTime.now());
+        sessionRepository.save(session);
 
         return getProgress(userEmail, chapterId);
     }

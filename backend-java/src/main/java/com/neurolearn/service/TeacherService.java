@@ -65,8 +65,18 @@ public class TeacherService {
         // Per-student totals from the same per-topic counters the student and parent dashboards use.
         Map<Long, int[]> answeredCorrect = new HashMap<>();
         Map<Long, List<Double>> topicPKnows = new HashMap<>();
+        // [topics practised, topics mastered] per student, judged topic by topic with MasteryRule.
+        Map<Long, int[]> topicCounts = new HashMap<>();
         for (TopicProgress tp : allTopicProgress) {
             Long id = tp.getStudentProfile().getId();
+            if (tp.getAttempts() != null && tp.getAttempts() > 0) {
+                int[] tc = topicCounts.computeIfAbsent(id, k -> new int[2]);
+                tc[0]++;
+                double p = tp.getPKnow() != null ? tp.getPKnow() : 0.20;
+                if (MasteryRule.isMastered(p, hardCorrect.getOrDefault(id, Map.of()).getOrDefault(tp.getTopic(), 0L))) {
+                    tc[1]++;
+                }
+            }
             int[] t = answeredCorrect.computeIfAbsent(id, k -> new int[2]);
             t[0] += tp.getAttempts() != null ? tp.getAttempts() : 0;
             t[1] += tp.getCorrectCount() != null ? tp.getCorrectCount() : 0;
@@ -88,9 +98,8 @@ public class TeacherService {
             double roundedPKnow = Math.round(pKnow * 100.0) / 100.0;
             double acc = attempts > 0 ? Math.round(totals[1] * 1000.0 / attempts) / 10.0 : 0.0;
 
-            long studentHardCorrect = hardCorrect.getOrDefault(sp.getId(), Map.of()).values().stream()
-                    .mapToLong(Long::longValue).sum();
-            String status = studentStatus(roundedPKnow, studentHardCorrect);
+            int[] tc = topicCounts.getOrDefault(sp.getId(), new int[2]);
+            String status = studentStatus(roundedPKnow, tc[1], tc[0]);
 
             roster.add(new TeacherAnalyticsResponse.StudentRosterItem(
                     sp.getId(),
@@ -102,7 +111,9 @@ public class TeacherService {
                     acc,
                     roundedPKnow,
                     attempts,
-                    status
+                    status,
+                    tc[0],
+                    tc[1]
             ));
         }
 
@@ -174,12 +185,13 @@ public class TeacherService {
     static final double BOTTLENECK_AVG_P_KNOW = 0.65;
 
     /**
-     * "Mastered" only with hard-question evidence ({@link MasteryRule}); a high P(L) from easy answers
-     * alone shows as "On Track".
+     * "Mastered" only when every topic the student has practised meets {@link MasteryRule} on its own
+     * (P(L) ≥ 0.85 and 2 correct level-3 answers <i>in that topic</i>). Otherwise the average P(L) decides
+     * between "On Track" and "Needs Attention". The roster also shows "N of M topics mastered".
      */
-    static String studentStatus(double pKnow, long hardCorrect) {
-        if (MasteryRule.isMastered(pKnow, hardCorrect)) return "Mastered";
-        if (pKnow >= ON_TRACK_P_KNOW) return "On Track";
+    static String studentStatus(double avgPKnow, int topicsMastered, int topicsPractised) {
+        if (topicsPractised > 0 && topicsMastered == topicsPractised) return "Mastered";
+        if (avgPKnow >= ON_TRACK_P_KNOW) return "On Track";
         return "Needs Attention";
     }
 

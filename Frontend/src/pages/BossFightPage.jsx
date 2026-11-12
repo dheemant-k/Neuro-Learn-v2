@@ -225,7 +225,8 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
     sound.playVictory();
     setBattleState("victory");
     try {
-      await claimBossVictory(bossTopic, chapter?.id || "linear_eq_2var");
+      if (!sessionId) throw new Error("No session: the victory bonus can't be verified");
+      await claimBossVictory({ sessionId, bossTopic, chapterId: chapter?.id || "linear_eq_2var" });
       setTotalXpAwarded((x) => x + 100);
       if (sessionId) await completeLearningSession({ sessionId }).catch(() => {});
     } catch (err) {

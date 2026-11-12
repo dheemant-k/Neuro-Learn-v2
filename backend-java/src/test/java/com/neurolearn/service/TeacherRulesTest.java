@@ -8,19 +8,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Roster status and curriculum-bottleneck rules behind the Teacher dashboard. */
 class TeacherRulesTest {
 
-    @ParameterizedTest(name = "pKnow={0}, hard correct={1} → {2}")
+    @ParameterizedTest(name = "avg P(L)={0}, mastered {1} of {2} topics → {3}")
     @CsvSource({
-            "0.20, 5, Needs Attention",
-            "0.59, 0, Needs Attention",
-            "0.60, 0, On Track",
-            "0.84, 9, On Track",
-            "0.85, 0, On Track",   // high P(L) from easy answers alone is not mastery
-            "1.00, 1, On Track",
-            "0.85, 2, Mastered",
-            "1.00, 3, Mastered"
+            "0.20, 0, 0, Needs Attention",
+            "0.59, 0, 3, Needs Attention",
+            "0.60, 0, 3, On Track",
+            "0.95, 2, 3, On Track",   // high average, but one practised topic isn't mastered
+            "0.95, 0, 0, On Track",   // high P(L) with no topic mastered is not mastery
+            "0.90, 3, 3, Mastered",   // every practised topic meets MasteryRule
+            "0.70, 1, 1, Mastered"
     })
-    void studentStatus(double pKnow, long hardCorrect, String expected) {
-        assertThat(TeacherService.studentStatus(pKnow, hardCorrect)).isEqualTo(expected);
+    void studentStatus(double avgPKnow, int mastered, int practised, String expected) {
+        assertThat(TeacherService.studentStatus(avgPKnow, mastered, practised)).isEqualTo(expected);
     }
 
     @ParameterizedTest(name = "avg={0}, struggling={1}, mastered={2} → alert={3}")

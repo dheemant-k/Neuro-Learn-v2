@@ -39,8 +39,15 @@ public class LearningSession {
     @Column(name = "last_difficulty_strategy", length = 20)
     private String lastDifficultyStrategy;
 
+    /** When this session's boss-victory bonus was paid; null if never (paid at most once). */
+    @Column(name = "boss_bonus_awarded_at")
+    private OffsetDateTime bossBonusAwardedAt;
+
     public LearningSession() {
     }
+
+    public OffsetDateTime getBossBonusAwardedAt() { return bossBonusAwardedAt; }
+    public void setBossBonusAwardedAt(OffsetDateTime bossBonusAwardedAt) { this.bossBonusAwardedAt = bossBonusAwardedAt; }
 
     public Long getLastQuestionId() { return lastQuestionId; }
     public String getLastAdaptiveAction() { return lastAdaptiveAction; }
