@@ -50,6 +50,31 @@ class EvaluationModelTest {
         assertThat(frustrated.quitProbability(100)).isEqualTo(1.0);
     }
 
+    @Test
+    void lapseProbabilityRisesWithFatigueUpToTheCapAndIsZeroByDefault() {
+        assertThat(model.lapseProbability(30)).isZero();
+        LearningModel inattentive = model.withLapses(0.10, 0.01);
+        assertThat(inattentive.lapseProbability(1)).isCloseTo(0.10, within(1e-12));
+        assertThat(inattentive.lapseProbability(30)).isCloseTo(0.39, within(1e-12));
+        assertThat(inattentive.lapseProbability(500)).isEqualTo(LearningModel.LAPSE_CAP);
+        assertThat(inattentive.withQuitRate(0.04).lapseProbability(1)).isCloseTo(0.10, within(1e-12));
+    }
+
+    @Test
+    void offTaskAnswersAreGuessesAndTeachNothing() {
+        // Always off-task: every answer is a 25% guess and ability never moves.
+        Simulator sim = new Simulator(model.withLapses(1.0, 0.0));
+        int answers = 0, correct = 0;
+        for (Simulator.Student st : Simulator.population(100, 1.0, 9)) {
+            for (Simulator.Step s : sim.run(st, DifficultyPolicy.fixed(), 30).steps()) {
+                assertThat(s.thetaAfter()).isEqualTo(st.theta0());
+                answers++;
+                correct += s.correct() ? 1 : 0;
+            }
+        }
+        assertThat(correct / (double) answers).isCloseTo(model.guess(), within(0.04));
+    }
+
     // ── Policies ──────────────────────────────────────────────────
 
     private static List<Integer> levels(DifficultyPolicy policy, boolean... answers) {

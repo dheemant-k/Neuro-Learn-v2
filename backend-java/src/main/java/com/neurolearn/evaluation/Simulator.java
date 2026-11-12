@@ -49,6 +49,7 @@ public final class Simulator {
         DifficultyPolicy.Session session = policy.start(s.id());
         Random answers = new Random(s.id() * 7919L + 17); // same draws for every policy
         Random quits = new Random(s.id() * 104729L + 3);   // same quit draws for every policy
+        Random lapses = new Random(s.id() * 15485863L + 11); // same attention draws for every policy
         double theta = s.theta0();
         int wrongStreak = 0;
         boolean quit = false;
@@ -60,9 +61,13 @@ public final class Simulator {
                 continue;
             }
             int level = session.nextLevel();
+            // Drawn every question, used only when lapses are on, so other scenarios are unchanged.
+            boolean offTask = lapses.nextDouble() < model.lapseProbability(i + 1);
+            // p is the attentive success chance: the difficulty metrics judge the policy's choice of level,
+            // not the lapse. An off-task answer is a guess.
             double p = model.pCorrect(theta, level);
-            boolean correct = answers.nextDouble() < p;
-            theta += model.learningGain(theta, level, s.eta());
+            boolean correct = answers.nextDouble() < (offTask ? model.guess() : p);
+            if (!offTask) theta += model.learningGain(theta, level, s.eta());
             session.observe(level, correct);
             steps.add(new Step(i + 1, level, p, correct, theta, model.isMastered(theta),
                     session.believedMastery(), session.claimsMastery(), true));

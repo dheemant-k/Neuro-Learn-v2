@@ -4,6 +4,7 @@ import supergirlImg from "../assets/supergirl.png";
 import batmanImg from "../assets/batman.png";
 import lexluthorImg from "../assets/lexluthor.png";
 import jokerImg from "../assets/joker.png";
+import brainiacImg from "../assets/brainiac.png";
 import { sound } from "../utils/soundEffects";
 import {
   startLearningSession,
@@ -46,12 +47,12 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
   const heroImg = isBatman ? batmanImg : isSupergirl ? supergirlImg : supermanImg;
   const bossName = isQuadChapter
     ? (isBatman ? "Ra's al Ghul & Seismic Resonator" : isSupergirl ? "Brainiac & Tachyon Field" : "General Zod & Phantom Zone Singularity")
-    : (isBatman ? "The Joker & Arkham Syndicate" : "Lex Luthor & Quantum Warsuit");
+    : (isBatman ? "The Joker & Arkham Syndicate" : isSupergirl ? "Brainiac & Tachyon Collector" : "Lex Luthor & Quantum Warsuit");
   const bossTitle = isQuadChapter
     ? (isBatman ? "SEISMIC SINGULARITY CORE" : isSupergirl ? "BRAINIAC TACHYON MATRIX" : "KRYPTONIAN GRAVITY MATRIX")
-    : (isBatman ? "ARKHAM GATEKEEPER" : "LEXCORP APEX WARSUIT");
-  const bossImg = isBatman ? jokerImg : lexluthorImg;
-  const shieldLabel = isBatman ? "Bat-Shield Matrix" : "Solar Shield Matrix";
+    : (isBatman ? "ARKHAM GATEKEEPER" : isSupergirl ? "BRAINIAC MAINFRAME ARRAY" : "LEXCORP APEX WARSUIT");
+  const bossImg = isBatman ? jokerImg : isSupergirl ? brainiacImg : lexluthorImg;
+  const shieldLabel = isBatman ? "Bat-Shield Matrix" : isSupergirl ? "Cosmic Shield Matrix" : "Solar Shield Matrix";
 
   const [questions, setQuestions] = useState([]);
   const [qIndex, setQIndex] = useState(0);
@@ -76,6 +77,8 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
   const [battleLog, setBattleLog] = useState(
     isBatman
       ? "🦇 Batcomputer Alert: The Joker has deployed an encryption matrix. Solve the equations to dismantle the firewall!"
+      : isSupergirl
+      ? "🛰️ DEO Tactical Alert: Brainiac's Tachyon core is charging! Solve the systems to collapse his forcefield before orbital lock!"
       : "🛰️ Daily Planet Comm-Link: Lex Luthor has engaged his LexCorp Quantum Warsuit. Solve the dual equations to collapse his anti-solar firewall!"
   );
 
@@ -507,14 +510,16 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
             <div className="mt-8 py-10 px-6 text-center animate-fadeIn">
               <div className="text-6xl mb-4 animate-bounce">🏆</div>
               <div className="pixel-heading text-3xl md:text-4xl text-amber-300">
-                {isBatman ? "ARKHAM GATES OVERRIDDEN!" : "LEXCORP MAINFRAME DESTABILIZED!"}
+                {isBatman ? "ARKHAM GATES OVERRIDDEN!" : isSupergirl ? "BRAINIAC'S FORCEFIELD SHATTERED!" : "LEXCORP MAINFRAME DESTABILIZED!"}
               </div>
               <div className="mt-2 text-lg text-emerald-400 font-bold">
-                {isBatman ? "The Joker's Encryption Has Been Decimated!" : "Lex Luthor's Quantum Warsuit Has Been Powered Down!"}
+                {isBatman ? "The Joker's Encryption Has Been Decimated!" : isSupergirl ? "Brainiac's Tachyon Matrix Has Been Neutralized!" : "Lex Luthor's Quantum Warsuit Has Been Powered Down!"}
               </div>
               <p className="mt-3 text-slate-300 max-w-lg mx-auto leading-relaxed">
                 {isBatman
                   ? "Your mastery of linear equation systems has broken the syndicate's defense grid. Gotham City is safe under your watch."
+                  : isSupergirl
+                  ? "Your mathematical precision disrupted Brainiac's assimilation arrays. National City's skies are safe under your flight!"
                   : "Your mastery of linear equation systems has broken LexCorp's grip on Metropolis. The city is safe under the sun."}
               </p>
 
@@ -523,7 +528,7 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
                 <div className="text-left">
                   <div className="text-xs uppercase tracking-wider font-bold">Achievement Unlocked</div>
                   <div className="font-bold text-base">
-                    {isBatman ? "Arkham Cryptographer Master (+100 XP)" : "Metropolis Quantum Defender (+100 XP)"}
+                    {isBatman ? "Arkham Cryptographer Master (+100 XP)" : isSupergirl ? "DEO Cosmic Strategist (+100 XP)" : "Metropolis Quantum Defender (+100 XP)"}
                   </div>
                 </div>
               </div>
@@ -544,11 +549,13 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
             <div className="mt-8 py-10 px-6 text-center animate-fadeIn">
               <div className="text-6xl mb-4">💥</div>
               <div className="pixel-heading text-3xl text-red-400">
-                {isBatman ? "BAT-SHIELD BREACHED!" : "SOLAR SHIELDS DEPLETED!"}
+                {isBatman ? "BAT-SHIELD BREACHED!" : isSupergirl ? "COSMIC SHIELDS DEPLETED!" : "SOLAR SHIELDS DEPLETED!"}
               </div>
               <div className="mt-2 text-base text-slate-300 font-medium">
                 {isBatman
                   ? "The Joker's firewall retaliated with overwhelming feedback."
+                  : isSupergirl
+                  ? "Brainiac's tachyon feedback overwhelmed your solar reserves."
                   : "Lex Luthor's quantum firewall deflected your calculations."}
               </div>
               <p className="mt-3 text-slate-400 text-sm max-w-md mx-auto">

@@ -11,6 +11,9 @@ package com.neurolearn.evaluation;
  *       when the item is δ logits <i>above</i> the student (zone of proximal development); far-too-easy or
  *       far-too-hard items teach little.</li>
  *   <li><b>True mastery</b>: expected accuracy on level-3 items ≥ {@link #MASTERY_ACCURACY}.</li>
+ *   <li><b>Attention lapses</b> (inattentive scenarios only): on question t the student is off-task with
+ *       probability min(cap, base + perQuestion·(t − 1)) — fatigue builds over the session. An off-task answer
+ *       is an impulsive guess (right with probability c) and teaches nothing.</li>
  * </ul>
  */
 public record LearningModel(
@@ -19,23 +22,39 @@ public record LearningModel(
         double discrimination, // a
         double zpdOffset,      // δ: how far above the student an item teaches best
         double zpdWidth,       // w
-        double quitPerWrongStreak // chance of quitting after each answer = this x consecutive wrong answers (0 = never quits)
+        double quitPerWrongStreak, // chance of quitting after each answer = this x consecutive wrong answers (0 = never quits)
+        double lapseBase,          // chance of being off-task on question 1 (0 = always attentive)
+        double lapsePerQuestion    // fatigue: added to the lapse chance per question answered
 ) {
+    static final double LAPSE_CAP = 0.50;
+
     /** Item difficulty (logits) for the app's levels 1, 2, 3. */
     static final double[] LEVEL_DIFFICULTY = {Double.NaN, -1.0, 0.5, 2.0};
     static final double MASTERY_ACCURACY = 0.70;
 
     public static LearningModel standard() {
-        return new LearningModel(0.25, 0.05, 1.2, 0.5, 1.0, 0.0);
+        return new LearningModel(0.25, 0.05, 1.2, 0.5, 1.0, 0.0, 0.0, 0.0);
     }
 
     public LearningModel withZpdOffset(double delta) {
-        return new LearningModel(guess, slip, discrimination, delta, zpdWidth, quitPerWrongStreak);
+        return new LearningModel(guess, slip, discrimination, delta, zpdWidth, quitPerWrongStreak, lapseBase, lapsePerQuestion);
     }
 
     /** Frustration: after k wrong answers in a row the student quits with probability k * rate. */
     public LearningModel withQuitRate(double rate) {
-        return new LearningModel(guess, slip, discrimination, zpdOffset, zpdWidth, rate);
+        return new LearningModel(guess, slip, discrimination, zpdOffset, zpdWidth, rate, lapseBase, lapsePerQuestion);
+    }
+
+    /** Inattention: off-task with probability base + perQuestion·(t − 1), capped at {@link #LAPSE_CAP}. */
+    public LearningModel withLapses(double base, double perQuestion) {
+        return new LearningModel(guess, slip, discrimination, zpdOffset, zpdWidth, quitPerWrongStreak, base, perQuestion);
+    }
+
+    /** Chance of an attention lapse on question {@code question} (1-based). */
+    public double lapseProbability(int question) {
+        if (lapseBase <= 0 && lapsePerQuestion <= 0) return 0.0;
+        // Fatigue stops growing at the cap; a base above the cap is kept as given.
+        return Math.min(Math.max(LAPSE_CAP, lapseBase), lapseBase + lapsePerQuestion * (question - 1));
     }
 
     public double pCorrect(double theta, int level) {

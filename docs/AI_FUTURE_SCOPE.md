@@ -119,7 +119,7 @@ All generation happens **server-side, offline or on teacher request**, never in 
 ### Tier 2 — Better models (classic, explainable ML)
 
 > **Status (Phase 5):** simulator, evaluation harness and BKT fitter are built — see [evaluation.md](evaluation.md).
-> Key result: the current engine's "Mastered" claim is almost never true because BKT ignores item difficulty;
+> Key result: the original engine's "Mastered" claim is almost never true because BKT ignores item difficulty;
 > a difficulty-aware (Elo/IRT-style) estimate fixes it in simulation. Real-data fitting awaits a pilot.
 
 | Item | Data needed | Notes |
