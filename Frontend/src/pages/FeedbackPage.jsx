@@ -89,12 +89,13 @@ export default function FeedbackPage({ section, character, results, onContinue }
           setFeedback(data);
           setLoading(false);
           startTypewriter(data.message || "Great job!");
-          animateXp(data.xp_earned || results.totalCorrect * 20);
+          // XP the server actually awarded this quest (summed by the quiz page).
+          animateXp(results.xpEarned ?? data.xp_earned ?? 0);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          const xp = results.totalCorrect * 20;
+          const xp = results.xpEarned ?? 0;
           const fallback = {
             message: `You scored ${results.totalCorrect}/${results.totalQuestions}! Keep going!`,
             tip: "Review the questions you got wrong.",
@@ -183,7 +184,7 @@ export default function FeedbackPage({ section, character, results, onContinue }
                   <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-1000"
-                      style={{ width: `${pct}%`, background: `linear-gradient(to right, ${theme.accent}, ${theme.accent}99)` }}
+                      style={{ width: `${pct}%`, background: `linear-gradient(to right, ${theme.accent}, ${theme.accentBorder})` }}
                     />
                   </div>
                 </div>
@@ -253,7 +254,7 @@ export default function FeedbackPage({ section, character, results, onContinue }
                 style={{ borderColor: "rgba(250,204,21,0.35)", background: "rgba(250,204,21,0.04)" }}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">\uD83D\uDCA1</span>
+                  <span className="text-lg">{"\uD83D\uDCA1"}</span>
                   <span className="font-bold text-yellow-300 text-sm uppercase tracking-widest">Tactical Tip</span>
                 </div>
                 <div className="text-slate-200/90 text-sm leading-relaxed">{feedback.tip}</div>

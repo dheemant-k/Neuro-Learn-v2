@@ -34,6 +34,18 @@ class MathTextTest {
     }
 
     @Test
+    void latexCommandsTurnedIntoControlCharactersAreRepaired() {
+        char cr = 13, tab = 9, ff = 12, lf = 10;
+        // JSON "\rightarrow" without an escaped backslash decodes to CR + "ightarrow", and so on.
+        assertThat(MathText.toPlain("5y = 10 " + cr + "ightarrow y = 2")).isEqualTo("5y = 10 → y = 2");
+        assertThat(MathText.toPlain("3 " + tab + "imes 4")).isEqualTo("3 × 4");
+        assertThat(MathText.toPlain(ff + "rac{1}{2}")).isEqualTo("1/2");
+        assertThat(MathText.toPlain("x " + lf + "eq 3")).isEqualTo("x ≠ 3");
+        // Ordinary line breaks are kept.
+        assertThat(MathText.toPlain("Step 1: x = 2" + lf + "Step 2: y = 3")).isEqualTo("Step 1: x = 2" + lf + "Step 2: y = 3");
+    }
+
+    @Test
     void dollarAmountsBecomeRupees() {
         assertThat(MathText.toPlain("2 crystals cost $15 in total")).isEqualTo("2 crystals cost ₹15 in total");
         assertThat(MathText.toPlain("$2")).isEqualTo("₹2");

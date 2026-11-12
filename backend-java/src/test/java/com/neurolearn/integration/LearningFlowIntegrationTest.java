@@ -3,6 +3,7 @@ package com.neurolearn.integration;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +57,32 @@ class LearningFlowIntegrationTest extends IntegrationTestBase {
         JsonNode intro = progress.get("sections").get(0);
         assertThat(intro.get("sectionId").asText()).isEqualTo("intro");
         assertThat(intro.get("attempts").asInt()).isEqualTo(answered);
+    }
+
+    @Test
+    void missingHeroFallsBackToTheSisterHeroAtTheChosenLevel() throws Exception {
+        // The seeded bank has no level-1 Supergirl question for the quadratic formula. A new student starts at
+        // level 1, so the fallback must keep level 1 and prefer Superman (same world) over any other hero or level.
+        String token = registerFresh("STUDENT");
+        long sessionId = postJson("/api/sessions/start", token, Map.of("topic", "quad_formula")).get("id").asLong();
+
+        JsonNode next = getJson("/api/sessions/" + sessionId
+                + "/next-question?topic=quad_formula&characterTheme=supergirl", token);
+
+        assertThat(next.get("currentDifficulty").asInt()).isEqualTo(1);
+        assertThat(next.get("question").get("difficulty").asInt()).isEqualTo(1);
+        assertThat(next.get("question").get("characterTheme").asText()).isEqualTo("superman");
+    }
+
+    @Test
+    void supergirlHasHerOwnQuestionsInEveryChapterOneTopic() throws Exception {
+        String token = registerFresh("STUDENT");
+        for (String topic : List.of("intro", "graphing", "pair_of_equations", "substitution", "elimination", "word_problems")) {
+            long sessionId = postJson("/api/sessions/start", token, Map.of("topic", topic)).get("id").asLong();
+            JsonNode next = getJson("/api/sessions/" + sessionId + "/next-question?topic=" + topic + "&characterTheme=supergirl", token);
+            assertThat(next.get("question").get("characterTheme").asText()).as(topic).isEqualTo("supergirl");
+            assertThat(next.get("question").get("difficulty").asInt()).as(topic).isEqualTo(1);
+        }
     }
 
     @Test

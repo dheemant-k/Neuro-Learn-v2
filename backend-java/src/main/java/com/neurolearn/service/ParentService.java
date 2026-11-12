@@ -80,8 +80,10 @@ public class ParentService {
 
             if (profile != null) {
                 profileId = profile.getId();
-                pKnow = profile.getPKnow() != null ? profile.getPKnow() : 0.20;
-                accuracy = profile.getOverallAccuracy() != null ? profile.getOverallAccuracy() : 0.0;
+                // Same numbers as the child's own dashboard and the report card.
+                DashboardResponse summary = dashboardService.buildDashboardForProfile(profile);
+                pKnow = summary.getOverall_p_know() != null ? summary.getOverall_p_know() : 0.20;
+                accuracy = summary.getOverall_accuracy() != null ? summary.getOverall_accuracy() : 0.0;
                 level = profile.getCurrentLevel() != null ? profile.getCurrentLevel() : 1;
                 xp = profile.getTotalXp() != null ? profile.getTotalXp() : 0;
             }

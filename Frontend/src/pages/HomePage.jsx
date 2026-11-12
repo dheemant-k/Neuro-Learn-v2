@@ -64,7 +64,7 @@ export default function HomePage({ selectedCharacter, onSelectCharacter, onSelec
                 Learn Math Like a Game
               </div>
               <p className="mt-6 text-base md:text-lg text-slate-200/90 leading-relaxed">
-                Story-based quests with your favourite characters. Adaptive difficulty powered by AI.
+                Story-based quests with your favourite characters. Difficulty that adapts to every answer.
               </p>
               <div className="mt-10 flex items-center gap-4 flex-wrap">
                 <button
@@ -146,7 +146,7 @@ export default function HomePage({ selectedCharacter, onSelectCharacter, onSelec
                         Final Boss
                       </span>
                       <span className="text-xs px-3 py-1 rounded-full border border-[rgba(250,204,21,0.35)] bg-[rgba(250,204,21,0.10)]">
-                        Adaptive AI
+                        Adaptive
                       </span>
                     </div>
                   </div>

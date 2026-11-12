@@ -17,11 +17,11 @@ import {
 // Helper to format equations with distinct high-contrast chips
 function formatTextWithEquations(text) {
   if (!text) return null;
-  const parts = text.split(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/g);
+  const parts = text.split(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+(?:\s*[+-]\s*\d+)*(?:\s*=\s*-?\d+)*\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/g);
   if (parts.length <= 1) return text;
 
   return parts.map((part, i) => {
-    if (part.match(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/)) {
+    if (part.match(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+(?:\s*[+-]\s*\d+)*(?:\s*=\s*-?\d+)*\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/)) {
       return (
         <span
           key={i}
@@ -178,10 +178,13 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
       const newHp = Math.max(0, bossHp - 100);
       setBossHp(newHp);
       setFloatingDmg("-100 HP CRITICAL!");
-      setTotalXpAwarded((x) => x + 25);
+      // XP the server actually awarded for this answer.
+      setTotalXpAwarded((x) => x + (attemptRes?.xpEarned ?? 15));
       setBattleLog(
         isBatman
           ? "💥 DIRECT HIT! Batarang coordinate calculation locked! 100 DMG dealt to the Arkham mainframe."
+          : isSupergirl
+          ? "💥 DIRECT HIT! Heat vision locked on! 100 DMG dealt to Brainiac's tachyon core."
           : "💥 DIRECT HIT! Solar heat vision focused! 100 DMG dealt to LexCorp's quantum shield core."
       );
       triggerShake();
@@ -194,6 +197,7 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
       }
     } else {
       sound.playWrong();
+      setTotalXpAwarded((x) => x + (attemptRes?.xpEarned ?? 5));
       // Player takes damage
       const newShields = playerShields - 1;
       setPlayerShields(newShields);
@@ -201,6 +205,8 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
       setBattleLog(
         isBatman
           ? "⚠️ FIREWALL RETALIATION! Bat-Shield compromised. Recalibrate coordinate offsets!"
+          : isSupergirl
+          ? "⚠️ TACHYON RETALIATION! Brainiac's probe hit your Kryptonian shields. Recalibrate coordinates!"
           : "⚠️ FIREWALL RETALIATION! LexCorp radiation beam hit your Solar Shields. Recalibrate coordinates!"
       );
       triggerShake();
@@ -253,6 +259,8 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
     setBattleLog(
       isBatman
         ? "🦇 Batcomputer Alert: Initiating emergency reboot. Arkham encryption re-engaged!"
+        : isSupergirl
+        ? "🛰️ DEO Tactical Alert: Shields recharged! Brainiac's tachyon matrix re-engaged!"
         : "🛰️ Daily Planet Comm-Link: Solar reboot initiated! LexCorp Quantum Matrix re-engaged!"
     );
     if (questions.length > 0) {
@@ -474,7 +482,7 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
                         onClick={submitAttack}
                         disabled={selected === null}
                       >
-                        <span>{isBatman ? "Fire EMP Batarang Strike (100 DMG)" : "Fire Solar Beam EMP Blast (100 DMG)"}</span>
+                        <span>{isBatman ? "Fire EMP Batarang Strike (100 DMG)" : isSupergirl ? "Fire Heat Vision Strike (100 DMG)" : "Fire Solar Beam EMP Blast (100 DMG)"}</span>
                         <span>⚡</span>
                       </button>
                     ) : (
