@@ -22,6 +22,35 @@ export default function TestPage({ section, character, onFinish, onBack }) {
   const [locked, setLocked] = useState(false);
   const [showExplain, setShowExplain] = useState(false);
 
+  // Character & Nemesis Identity
+  const charId = (character?.id || character?.name || "superman").toLowerCase();
+  const isBatman = charId.includes("batman");
+  const isSupergirl = charId.includes("supergirl");
+
+  const heroBadge = isBatman ? "🦇" : isSupergirl ? "⚡" : "S";
+  const heroBadgeBg = isBatman
+    ? "from-slate-700 via-sky-900 to-indigo-950"
+    : isSupergirl
+    ? "from-purple-600 via-pink-600 to-amber-300"
+    : "from-red-600 via-blue-600 to-amber-400";
+  const heroChargeLabel = isBatman
+    ? "🦇 Batman • Tactical Intel"
+    : isSupergirl
+    ? "⚡ Supergirl • Cosmic Energy"
+    : "🦸 Superman • Solar Charge";
+
+  const enemyBadge = isBatman ? "JOKER" : isSupergirl ? "BRAIN" : "LEX";
+  const enemyBadgeBg = isBatman
+    ? "from-purple-800 to-emerald-700"
+    : isSupergirl
+    ? "from-emerald-800 to-fuchsia-700"
+    : "from-purple-700 to-rose-700";
+  const enemyLabel = isBatman
+    ? "🃏 Arkham Smylex Grid"
+    : isSupergirl
+    ? "🧠 Brainiac Tachyon Matrix"
+    : "🏢 LexCorp Quantum Firewall";
+
   // Gamification & Duel Battle Stats
   const [solarCharge, setSolarCharge] = useState(0); // 0 to 100%
   const [lexFirewallHp, setLexFirewallHp] = useState(100); // 100% down to 0%
@@ -41,10 +70,18 @@ export default function TestPage({ section, character, onFinish, onBack }) {
 
   // Dynamic Superhero Quotes
   const [heroQuote, setHeroQuote] = useState(
-    "Metropolis defense matrix active. Calculate the solution coordinates to breach LexCorp's grid!"
+    isBatman
+      ? "Batcomputer online. Decode the linear coordinates to locate the Joker's trigger!"
+      : isSupergirl
+      ? "DEO telemetry active. Solve the coordinate equations to puncture Brainiac's forcefield!"
+      : "Metropolis defense matrix active. Calculate the solution coordinates to breach LexCorp's grid!"
   );
   const [lexQuote, setLexQuote] = useState(
-    "LexCorp Quantum Encryption: 100% online. You won't crack these linear equations, Superman."
+    isBatman
+      ? "Why so serious, Batman? Solve these equations before Gotham's clock strikes twelve! Hahaha!"
+      : isSupergirl
+      ? "Your biological cognitive pathways cannot breach my tachyon matrix, Kara Zor-El."
+      : "LexCorp Quantum Encryption: 100% online. You won't crack these linear equations, Superman."
   );
 
   const startRef = useRef(Date.now());
@@ -245,12 +282,20 @@ export default function TestPage({ section, character, onFinish, onBack }) {
         addFloatingEffect(`🔥 ${newStreak}x STREAK BONUS!`, "streak");
       }
 
-      // Charge Solar Power & Damage LexCorp
+      // Charge Hero Energy & Damage Villain Grid
       setSolarCharge((prev) => Math.min(100, prev + 20));
       setLexFirewallHp((prev) => Math.max(0, prev - 20));
 
-      setHeroQuote("Direct hit! Solar blast neutralized this frequency node.");
-      setLexQuote("Firewall compromised! Security node damaged.");
+      if (isBatman) {
+        setHeroQuote("Target acquired. Batcomputer verified the root coordinates.");
+        setLexQuote("Gah! My laughing gas valves are cracking! Who taught you algebra?!");
+      } else if (isSupergirl) {
+        setHeroQuote("Direct strike! Sunlight surge collapsed Brainiac's node frequency!");
+        setLexQuote("Alert! Tachyon matrix destabilizing! An anomalous variable was introduced!");
+      } else {
+        setHeroQuote("Direct hit! Solar blast neutralized this frequency node.");
+        setLexQuote("Firewall compromised! Security node damaged.");
+      }
     } else {
       setReactionState("wrong");
       sound.playWrong();
@@ -261,8 +306,16 @@ export default function TestPage({ section, character, onFinish, onBack }) {
       setCardShake(true);
       setTimeout(() => setCardShake(false), 500);
 
-      setHeroQuote("LexCorp frequency deflected the beam. Review the steps and re-calibrate!");
-      setLexQuote("Haha! The firewall absorbed your calculation. Try harder, Man of Steel.");
+      if (isBatman) {
+        setHeroQuote("The Joker's signal scrambler deflected the bat-scanner. Recalibrate and check the steps!");
+        setLexQuote("Haha! Missed by a mile, Bats! Even the clowns at Arkham calculate faster than that!");
+      } else if (isSupergirl) {
+        setHeroQuote("Brainiac's force field absorbed the thermal burst. Rework the binomial coefficients!");
+        setLexQuote("Inefficient. Your biological processing lacks algebraic precision.");
+      } else {
+        setHeroQuote("LexCorp frequency deflected the beam. Review the steps and re-calibrate!");
+        setLexQuote("Haha! The firewall absorbed your calculation. Try harder, Man of Steel.");
+      }
     }
   };
 
@@ -466,18 +519,18 @@ export default function TestPage({ section, character, onFinish, onBack }) {
 
       {/* Main Duel Arena */}
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {/* SUPERMAN VS LEXCORP DUEL HUD */}
+        {/* SUPERHERO VS VILLAIN DUEL HUD */}
         <div className="rounded-3xl border-2 border-sky-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950/70 p-5 shadow-2xl relative overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-            {/* Player Side: Superman Solar Charge */}
+            {/* Player Side */}
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 via-blue-600 to-amber-400 p-0.5 shrink-0 shadow-lg flex items-center justify-center font-black text-white text-xl">
-                S
+              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${heroBadgeBg} p-0.5 shrink-0 shadow-lg flex items-center justify-center font-black text-white text-xl`}>
+                {heroBadge}
               </div>
               <div className="flex-1">
                 <div className="flex justify-between items-center text-xs font-semibold mb-1">
                   <span className="text-sky-300 flex items-center gap-1">
-                    🦸 Superman • Solar Charge
+                    {heroChargeLabel}
                   </span>
                   <span className="text-amber-300 font-bold">{solarCharge}%</span>
                 </div>
@@ -490,11 +543,11 @@ export default function TestPage({ section, character, onFinish, onBack }) {
               </div>
             </div>
 
-            {/* Enemy Side: LexCorp Firewall */}
+            {/* Enemy Side */}
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <div className="flex justify-between items-center text-xs font-semibold mb-1">
-                  <span className="text-rose-400">🏢 LexCorp Quantum Firewall</span>
+                  <span className="text-rose-400">{enemyLabel}</span>
                   <span className="text-rose-300 font-bold">{lexFirewallHp}% HP</span>
                 </div>
                 <div className="h-3 w-full rounded-full bg-slate-800/80 overflow-hidden border border-slate-700/60 p-0.5">
@@ -504,8 +557,8 @@ export default function TestPage({ section, character, onFinish, onBack }) {
                   />
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-700 to-rose-700 p-0.5 shrink-0 shadow-lg flex items-center justify-center font-black text-white text-sm">
-                LEX
+              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${enemyBadgeBg} p-0.5 shrink-0 shadow-lg flex items-center justify-center font-black text-white text-xs font-mono`}>
+                {enemyBadge}
               </div>
             </div>
           </div>
@@ -621,7 +674,7 @@ export default function TestPage({ section, character, onFinish, onBack }) {
                 <span className="text-3xl">🛰️</span>
               </div>
               <div className="pixel-heading text-lg text-sky-400 animate-pulse">
-                Accessing LexCorp Mainframe Coordinates...
+                {isBatman ? "Scanning Arkham Grid Mainframe..." : isSupergirl ? "Breaching Brainiac's Telemetry Grid..." : "Accessing LexCorp Mainframe Coordinates..."}
               </div>
               <p className="text-xs text-slate-400 mt-2">Decryption algorithms running...</p>
             </div>
