@@ -124,13 +124,14 @@ Full write-up: **[docs/evaluation.md](docs/evaluation.md)** (charts + CSVs in `d
 - **Findings:** fixed ramp beats the original engine on mastery within 30 questions (73.4% vs 61.2%) in every scenario; the engine's "Mastered" claim is early and almost never true (0% vs 94% for a difficulty-aware estimate); adaptivity reduces quitting when frustration is modelled.
 - [x] **Earned mastery (follow-up 1, done 2026-11-11):** `MasteryRule` — "Mastered" needs P(L) ≥ 0.85 + 2 correct level-3 answers, everywhere it is shown; frontend no longer re-derives it from P(L). Also fixed: P(L) was serialised as `pknow`, so the roadmap, teacher roster and parent cards always showed 20%.
 - [x] **Adaptive ramp (follow-up, 2026-11-11):** fixed ramp + skip ahead after 3 correct + slow down after 2 misses. Rules fixed before running. Beats the original engine in all 6 scenarios and the fixed ramp in 3 (weak starters, learning at own level, frustration — where it has both the most mastery and fewer quits). Now **in the app** as the default difficulty strategy (V11): teachers pick Adaptive ramp / Fixed ramp / Original engine per class; ramp progress replays the student's whole topic history (carries across sessions); attempts log the strategy. App and simulator share `adaptive/DifficultyRamp`, and re-running the simulation reproduced its outputs byte for byte ([docs/evaluation.md §4.5, §6.2](docs/evaluation.md)).
+- [x] **Evaluation 2, inattentive learners (2026-11-12):** attention lapses rising with fatigue, run as a separate scenario set (`simulate … attention`). Fixed ramp gets more inattentive students to mastery (52.1% vs 35.0%); the adaptive ramp halves too-hard questions and has 9 points fewer quits but reads lapses as "not ready". Next: a lapse-aware rule using response time ([docs/evaluation_attention.md](docs/evaluation_attention.md)).
 - **Open quirk:** the roster/parent "P(L)" is the student's *last touched topic*, not an overall value — worth replacing with an average or per-topic view.
 - **Follow-ups:** (2) classroom pilot (fixed vs adaptive A/B) before re-tuning difficulty selection; (3) IRT calibration after ~500 respondents; (4) simulator can feed DKT experiments later.
 
 ### Phase 6 — Deployment (≈5 h)
 - [x] `backend-java/Dockerfile` (multi-stage maven → JRE 17), `Frontend/Dockerfile` (build → nginx, proxy `/api`).
 - [x] Extend `docker-compose.yml` to the full stack + `.env.example`; one command `docker compose up` runs the demo. CI builds both images. Guide: [docs/deployment.md](docs/deployment.md).
-- [ ] Optional: deploy to Render/Railway/Fly for a live URL (needs the owner's accounts; steps in the guide).
+- [x] Live deployment: web app on Vercel, API on Render (Docker, free tier), database on Neon (2026-11-11).
 
 **Hosting plan if the frontend goes on Vercel** (Vercel runs static sites and short serverless
 functions — it cannot run the always-on Spring Boot JVM or host Postgres):
@@ -181,7 +182,7 @@ Phase 0 ─► Phase 1 ─► Phase 2 ─► Phase 4 ─► Phase 5 ─► Phase
 1. ~~**Positioning** of engagement/ADHD analytics~~ — **decided 2026-11-09: option A** (no per-child flag; see Phase 7).
 2. **Submission date** — determines the cut line above.
 3. **`legacy-python/`** — delete or keep as archive?
-4. **Live deployment** needed, or is `docker compose up` enough for grading?
+4. ~~**Live deployment**~~ — done (Vercel + Render + Neon).
 
 ## 5. Working conventions going forward
 - **Branch per phase** (`feat/security-hardening`, `feat/llm-questions`, …) → PR → CI green → merge. Stop committing straight to `main`.

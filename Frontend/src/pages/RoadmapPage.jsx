@@ -284,7 +284,7 @@ export default function RoadmapPage({ chapter, character, onLearn, onTest, onFin
                     <div>
                       <div className="font-bold text-base text-slate-100">Adaptive Quest</div>
                       <div className="text-xs text-slate-300/80 mt-0.5">
-                        5 AI-adapted challenges powered by BKT
+                        5 challenges that adapt to your answers
                       </div>
                     </div>
                   </div>

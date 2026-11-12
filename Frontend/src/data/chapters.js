@@ -110,3 +110,11 @@ export const chapters = [
     },
   },
 ];
+
+/** Section id → title for every section and final boss (dashboards show topics by id). */
+export const SECTION_TITLES = Object.fromEntries(
+  chapters.flatMap((ch) => [
+    ...ch.sections.map((s) => [s.id, s.title]),
+    ...(ch.finalBoss ? [[ch.finalBoss.id, ch.finalBoss.title]] : []),
+  ])
+);

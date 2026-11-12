@@ -259,9 +259,10 @@ export default function TestPage({ section, character, onFinish, onBack }) {
       }
       isCorrect = Boolean(attemptRes?.correct);
       setCurrentQ((q) => ({ ...q, correctAnswer: attemptRes?.correctAnswer, explanation: attemptRes?.explanation }));
-      setBktUpdate(attemptRes);
-      if (attemptRes?.pknow !== undefined) setCurrentPKnow(attemptRes.pknow);
-      else if (attemptRes?.pKnow !== undefined) setCurrentPKnow(attemptRes.pKnow);
+      // The server returns only the new P(L); keep the value before this answer to show the change.
+      const newPKnow = attemptRes?.pknow ?? attemptRes?.pKnow;
+      setBktUpdate({ previous: currentPKnow, updated: newPKnow ?? currentPKnow });
+      if (newPKnow !== undefined) setCurrentPKnow(newPKnow);
     }
 
     setShowExplain(true);
@@ -273,13 +274,14 @@ export default function TestPage({ section, character, onFinish, onBack }) {
       const newStreak = streak + 1;
       setStreak(newStreak);
 
-      const xpEarn = 15 + newStreak * 5;
+      // Show what the server actually awarded (offline practice mirrors its 15 XP).
+      const xpEarn = attemptRes?.xpEarned ?? 15;
       setXpGained((x) => x + xpEarn);
       addFloatingEffect(`+${xpEarn} XP!`, "xp");
 
       if (newStreak >= 2) {
         sound.playStreak();
-        addFloatingEffect(`🔥 ${newStreak}x STREAK BONUS!`, "streak");
+        addFloatingEffect(`🔥 ${newStreak}x STREAK!`, "streak");
       }
 
       // Charge Hero Energy & Damage Villain Grid
@@ -300,8 +302,9 @@ export default function TestPage({ section, character, onFinish, onBack }) {
       setReactionState("wrong");
       sound.playWrong();
       setStreak(0);
-      setXpGained((x) => x + 5);
-      addFloatingEffect("+5 XP (Effort)", "effort");
+      const effortXp = attemptRes?.xpEarned ?? 5;
+      setXpGained((x) => x + effortXp);
+      addFloatingEffect(`+${effortXp} XP (Effort)`, "effort");
 
       setCardShake(true);
       setTimeout(() => setCardShake(false), 500);
@@ -330,6 +333,7 @@ export default function TestPage({ section, character, onFinish, onBack }) {
       onFinish({
         totalCorrect: totalCorrect,
         totalQuestions: TOTAL,
+        xpEarned: xpGained,
       });
       return;
     }
@@ -438,11 +442,11 @@ export default function TestPage({ section, character, onFinish, onBack }) {
   // Helper to format equations with distinct high-contrast chips
   const formatTextWithEquations = (text) => {
     if (!text) return null;
-    const parts = text.split(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/g);
+    const parts = text.split(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+(?:\s*[+-]\s*\d+)*(?:\s*=\s*-?\d+)*\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/g);
     if (parts.length <= 1) return text;
 
     return parts.map((part, i) => {
-      if (part.match(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/)) {
+      if (part.match(/(\b-?\d*x\s*[+-]\s*\d*y\s*=\s*-?\d+(?:\s*[+-]\s*\d+)*(?:\s*=\s*-?\d+)*\b|\b[xy]\s*=\s*-?\d+\b|\b-?\d*x\s*[+-]\s*\d+\s*=\s*-?\d+\b|\b\([a-zA-Z0-9-]+,\s*[a-zA-Z0-9-]+\))/)) {
         return (
           <span
             key={i}
@@ -783,12 +787,12 @@ export default function TestPage({ section, character, onFinish, onBack }) {
                         </span>
                       </div>
                       {locked && isTargetCorrect && (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/60 text-emerald-400 font-bold text-xs flex items-center gap-1 animate-bounce">
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/60 text-emerald-400 font-bold text-xs flex items-center gap-1 animate-bounce shrink-0 whitespace-nowrap">
                           <span>✓</span> Correct
                         </span>
                       )}
                       {locked && isChosen && !isTargetCorrect && (
-                        <span className="px-2 py-0.5 rounded-lg bg-rose-500/20 border border-rose-400/60 text-rose-400 font-bold text-xs flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-lg bg-rose-500/20 border border-rose-400/60 text-rose-400 font-bold text-xs flex items-center gap-1 shrink-0 whitespace-nowrap">
                           <span>✗</span> Miscalculated
                         </span>
                       )}
@@ -848,11 +852,14 @@ export default function TestPage({ section, character, onFinish, onBack }) {
             <span>🧠</span> Bayesian Knowledge State:{" "}
             <strong className="text-sky-400">{Math.round(currentPKnow * 100)}% P(L)</strong>
           </span>
-          {bktUpdate && (
-            <span className="text-emerald-400 animate-pulse">
-              Adaptive model updated (+{Math.round((bktUpdate.pknow - bktUpdate.previousPknow) * 100)}%)
-            </span>
-          )}
+          {bktUpdate && (() => {
+            const delta = Math.round((bktUpdate.updated - bktUpdate.previous) * 100);
+            return (
+              <span className={`${delta < 0 ? "text-amber-300" : "text-emerald-400"} animate-pulse`}>
+                Knowledge estimate updated ({delta >= 0 ? "+" : ""}{delta}%)
+              </span>
+            );
+          })()}
         </div>
       </main>
 

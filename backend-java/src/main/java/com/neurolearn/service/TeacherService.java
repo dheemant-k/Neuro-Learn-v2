@@ -62,15 +62,31 @@ public class TeacherService {
                 ? Map.of()
                 : masteryRule.hardCorrectByStudentAndTopic(visibleIds);
 
+        // Per-student totals from the same per-topic counters the student and parent dashboards use.
+        Map<Long, int[]> answeredCorrect = new HashMap<>();
+        Map<Long, List<Double>> topicPKnows = new HashMap<>();
+        for (TopicProgress tp : allTopicProgress) {
+            Long id = tp.getStudentProfile().getId();
+            int[] t = answeredCorrect.computeIfAbsent(id, k -> new int[2]);
+            t[0] += tp.getAttempts() != null ? tp.getAttempts() : 0;
+            t[1] += tp.getCorrectCount() != null ? tp.getCorrectCount() : 0;
+            topicPKnows.computeIfAbsent(id, k -> new ArrayList<>()).add(tp.getPKnow() != null ? tp.getPKnow() : 0.20);
+        }
+
         List<TeacherAnalyticsResponse.StudentRosterItem> roster = new ArrayList<>();
         for (StudentProfile sp : profiles) {
             User u = sp.getUser();
             String name = u != null ? u.getName() : "Student #" + sp.getId();
             String email = u != null ? u.getEmail() : "unknown";
-            int attempts = attemptRepository.findByStudentProfileIdOrderByTimestampDesc(sp.getId()).size();
-            double pKnow = sp.getPKnow() != null ? sp.getPKnow() : 0.20;
+            int[] totals = answeredCorrect.getOrDefault(sp.getId(), new int[2]);
+            int attempts = totals[0];
+            // Average over topics, as on the student dashboard (the profile value is just the last topic answered).
+            List<Double> pks = topicPKnows.get(sp.getId());
+            double pKnow = pks != null && !pks.isEmpty()
+                    ? pks.stream().mapToDouble(Double::doubleValue).average().orElse(0.20)
+                    : (sp.getPKnow() != null ? sp.getPKnow() : 0.20);
             double roundedPKnow = Math.round(pKnow * 100.0) / 100.0;
-            double acc = sp.getOverallAccuracy() != null ? sp.getOverallAccuracy() : 0.0;
+            double acc = attempts > 0 ? Math.round(totals[1] * 1000.0 / attempts) / 10.0 : 0.0;
 
             long studentHardCorrect = hardCorrect.getOrDefault(sp.getId(), Map.of()).values().stream()
                     .mapToLong(Long::longValue).sum();
@@ -126,8 +142,10 @@ public class TeacherService {
 
             boolean alert = isBottleneck(avgPKnow, struggling, mastered);
             String rec = alert
-                    ? "⚠️ " + struggling + " student(s) below mastery threshold on " + topic + ". Targeted review suggested."
-                    : "✅ Class is proficient with average Bayesian mastery at " + Math.round(avgPKnow * 100) + "%.";
+                    ? struggling + " student(s) below the on-track level here. Targeted review suggested."
+                    : mastered > 0
+                    ? "✅ On track: " + mastered + " student(s) mastered, average P(L) " + Math.round(avgPKnow * 100) + "%."
+                    : "✅ No one struggling (average P(L) " + Math.round(avgPKnow * 100) + "%); nobody has mastered it yet.";
 
             bottlenecks.add(new TeacherAnalyticsResponse.TopicBottleneck(
                     topic,

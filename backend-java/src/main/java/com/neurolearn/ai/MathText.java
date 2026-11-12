@@ -53,12 +53,29 @@ public final class MathText {
     private static final Pattern MATH_SIGNAL = Pattern.compile("[\\\\^=+*/<>_]|\\d[a-zA-Z]|[a-zA-Z]\\d|^\\s*[a-zA-Z]\\s*$");
     private static final Pattern PAREN_DELIMS =Pattern.compile("\\\\[()\\[\\]]");
 
+    private static final char CR = 13, TAB = 9, FF = 12, BS = 8, LF = 10, BACKSLASH = 92;
+    /**
+     * A LaTeX command whose backslash the model failed to escape in JSON arrives as a control character:
+     * rightarrow as CR + "ightarrow", times as TAB + "imes", frac as FF + "rac", beta as BS + "eta",
+     * neq as LF + "eq". The backslash is put back so the command then converts normally.
+     */
+    private static final Pattern MANGLED_COMMAND = Pattern.compile(
+            "[" + CR + TAB + FF + BS + "](?=[a-zA-Z])|" + LF + "(?=eq(?![a-zA-Z]))");
+
     private MathText() {
+    }
+
+    private static String restoreMangledCommands(String s) {
+        return MANGLED_COMMAND.matcher(s).replaceAll(m -> {
+            char c = m.group().charAt(0);
+            char letter = c == CR ? 'r' : c == TAB ? 't' : c == FF ? 'f' : c == LF ? 'n' : 'b';
+            return Matcher.quoteReplacement(String.valueOf(BACKSLASH) + letter);
+        });
     }
 
     public static String toPlain(String s) {
         if (s == null || s.isEmpty()) return s;
-        String out = s;
+        String out = restoreMangledCommands(s);
         // Strip $...$ / $$...$$ delimiters (keep content) — but only when the content looks like maths,
         // so "costs $15 and $9" (two amounts) is not mistaken for one LaTeX span.
         out = INLINE.matcher(out).replaceAll(m -> Matcher.quoteReplacement(

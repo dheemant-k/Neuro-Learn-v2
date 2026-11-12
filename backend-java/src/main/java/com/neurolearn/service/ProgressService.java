@@ -60,6 +60,11 @@ public class ProgressService {
     }
 
 
+    /** Open if it's the first section, the previous one is completed, or the student already completed this one. */
+    static boolean isSectionUnlocked(int index, boolean previousCompleted, boolean completed) {
+        return index == 0 || previousCompleted || completed;
+    }
+
     static boolean isBossUnlocked(int completedSections, int totalSections) {
         return completedSections >= totalSections || completedSections >= BOSS_UNLOCK_SECTIONS;
     }
@@ -106,7 +111,8 @@ public class ProgressService {
 
             boolean isMastered = MasteryRule.isMastered(pKnow, hardCorrect.getOrDefault(secId, 0L));
             boolean isCompleted = isSectionCompleted(pKnow, attempts, correct);
-            boolean isUnlocked = (i == 0) || previousCompleted;
+            // A section the student already completed never shows as locked.
+            boolean isUnlocked = isSectionUnlocked(i, previousCompleted, isCompleted);
 
             if (isCompleted) {
                 completedCount++;

@@ -15,7 +15,7 @@ import {
 } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import QuestionBankPanel from "../components/QuestionBankPanel";
-import { chapters } from "../data/chapters";
+import { SECTION_TITLES } from "../data/chapters";
 
 export default function DashboardPage({ onBack }) {
   const { user } = useAuth();
@@ -56,8 +56,7 @@ function StudentDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const sectionTitleMap = {};
-  chapters.forEach((ch) => ch.sections.forEach((s) => { sectionTitleMap[s.id] = s.title; }));
+  const sectionTitleMap = SECTION_TITLES;
 
   useEffect(() => {
     getDashboard().then(setData).catch(() => setData(null)).finally(() => setLoading(false));
@@ -78,7 +77,7 @@ function StudentDashboard() {
       <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard label="Total XP" value={data.total_xp} color="text-[rgb(250,204,21)]" />
         <StatCard label="Level" value={data.level} color="text-[rgb(56,189,248)]" />
-        <StatCard label="Questions" value={`${data.total_correct}/${data.total_answered}`} color="text-[rgb(94,234,212)]" />
+        <StatCard label="Correct / Answered" value={`${data.total_correct}/${data.total_answered}`} color="text-[rgb(94,234,212)]" />
         <StatCard label="Accuracy" value={`${data.overall_accuracy}%`} color="text-white" />
         <StatCard label="Bayesian P(L)" value={`${Math.round((data.overall_p_know ?? 0.20) * 100)}%`} color="text-indigo-400" />
       </div>
@@ -177,8 +176,7 @@ function TeacherDashboard() {
   const [selectedClassId, setSelectedClassId] = useState(null); // null = all my classes
   const [reloadKey, setReloadKey] = useState(0);
 
-  const sectionTitleMap = {};
-  chapters.forEach((ch) => ch.sections.forEach((s) => { sectionTitleMap[s.id] = s.title; }));
+  const sectionTitleMap = SECTION_TITLES;
 
   useEffect(() => {
     let cancelled = false;
@@ -586,8 +584,7 @@ function StudentClassesPanel() {
 }
 
 function StudentDashInspector({ data }) {
-  const sectionTitleMap = {};
-  chapters.forEach((ch) => ch.sections.forEach((s) => { sectionTitleMap[s.id] = s.title; }));
+  const sectionTitleMap = SECTION_TITLES;
 
   return (
     <div className="space-y-4">
@@ -632,8 +629,7 @@ function ParentDashboard() {
   const [reportCard, setReportCard] = useState(null);
   const [loadingCard, setLoadingCard] = useState(false);
 
-  const sectionTitleMap = {};
-  chapters.forEach((ch) => ch.sections.forEach((s) => { sectionTitleMap[s.id] = s.title; }));
+  const sectionTitleMap = SECTION_TITLES;
 
   const loadChildren = () => {
     setLoading(true);

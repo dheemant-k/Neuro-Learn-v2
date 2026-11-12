@@ -799,7 +799,7 @@ This separation ensures that the lack of a suitable engagement dataset or model 
 - [x] Java Spring Boot backend
 - [x] PostgreSQL database
 - [x] Authentication
-- [ ] Role-based authorization *(roles exist; endpoints are not enforced yet — Phase 1)*
+- [x] Role-based authorization *(deny-by-default rules per role + ownership checks)*
 - [x] Student profile
 - [x] Question bank
 - [x] Learning sessions
@@ -811,8 +811,8 @@ This separation ensures that the lack of a suitable engagement dataset or model 
 - [x] Teacher dashboard
 - [x] Parent dashboard
 - [x] REST API integration
-- [ ] Deployment *(Postgres only in Docker so far — Phase 6)*
-- [ ] Testing *(BKT unit tests only — Phase 2)*
+- [x] Deployment *(Docker Compose; live on Vercel + Render + Neon — [docs/deployment.md](docs/deployment.md))*
+- [x] Testing *(unit + Testcontainers integration tests, CI on every PR)*
 
 ### AI
 

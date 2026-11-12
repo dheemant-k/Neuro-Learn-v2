@@ -55,12 +55,14 @@ public class DashboardService {
         }
 
         List<QuestionAttempt> attempts = attemptRepository.findByStudentProfileIdOrderByTimestampDesc(profile.getId());
-        int totalAnswered = attempts.size();
-        int totalCorrect = (int) attempts.stream().filter(QuestionAttempt::getCorrect).count();
-        double accuracy = totalAnswered > 0 ? Math.round(((double) totalCorrect / totalAnswered) * 1000.0) / 10.0 : 0.0;
 
         // Section breakdown from TopicProgress
         List<TopicProgress> topicProgressList = topicProgressRepository.findByStudentProfileId(profile.getId());
+        // Totals come from the same per-topic counters as the section cards and roadmap, so the overview always
+        // agrees with them (seeded demo history has counters without individual attempt rows).
+        int totalAnswered = topicProgressList.stream().mapToInt(tp -> tp.getAttempts() != null ? tp.getAttempts() : 0).sum();
+        int totalCorrect = topicProgressList.stream().mapToInt(tp -> tp.getCorrectCount() != null ? tp.getCorrectCount() : 0).sum();
+        double accuracy = totalAnswered > 0 ? Math.round(((double) totalCorrect / totalAnswered) * 1000.0) / 10.0 : 0.0;
         Map<String, Long> hardCorrect = masteryRule.hardCorrectByTopic(profile.getId());
         List<DashboardResponse.SectionStat> sections = new ArrayList<>();
         double totalPKnow = 0.0;

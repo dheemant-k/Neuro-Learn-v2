@@ -160,47 +160,7 @@ public class LearningSessionService {
             reason = ramp.reason();
         }
 
-        // Find questions matching topic, targetDifficulty, and characterTheme
-        List<Question> candidates;
-        if (characterTheme != null && !characterTheme.isBlank()) {
-            candidates = questionRepository.findByTopicAndDifficultyAndCharacterTheme(topic, targetDifficulty, characterTheme);
-        } else {
-            candidates = questionRepository.findByTopicAndDifficulty(topic, targetDifficulty);
-        }
-
-        List<Question> unattempted = candidates.stream()
-                .filter(q -> !attemptedIds.contains(q.getId()))
-                .collect(Collectors.toList());
-
-        // Fallback to any unattempted under the topic (with character theme first)
-        if (unattempted.isEmpty() && characterTheme != null && !characterTheme.isBlank()) {
-            List<Question> allThemeQuestions = questionRepository.findByTopicAndCharacterTheme(topic, characterTheme);
-            unattempted = allThemeQuestions.stream()
-                    .filter(q -> !attemptedIds.contains(q.getId()))
-                    .collect(Collectors.toList());
-        }
-
-        // Fallback to any unattempted under topic regardless of theme
-        if (unattempted.isEmpty()) {
-            List<Question> allTopicQuestions = questionRepository.findByTopic(topic);
-            unattempted = allTopicQuestions.stream()
-                    .filter(q -> !attemptedIds.contains(q.getId()))
-                    .collect(Collectors.toList());
-        }
-
-        // If all attempted, take any question from the topic
-        Question chosen;
-        if (!unattempted.isEmpty()) {
-            chosen = unattempted.get(new Random().nextInt(unattempted.size()));
-        } else {
-            List<Question> allTopicQuestions = (characterTheme != null && !characterTheme.isBlank())
-                    ? questionRepository.findByTopicAndCharacterTheme(topic, characterTheme)
-                    : questionRepository.findByTopic(topic);
-            if (allTopicQuestions.isEmpty()) {
-                allTopicQuestions = questionRepository.findByTopic(topic);
-            }
-            chosen = !allTopicQuestions.isEmpty() ? allTopicQuestions.get(0) : null;
-        }
+        Question chosen = pickQuestion(topic, targetDifficulty, characterTheme, attemptedIds);
 
         // P(L) alone isn't mastery: it must also be earned on hard questions (MasteryRule).
         long hardCorrect = masteryRule.hardCorrect(profile.getId(), topic);
@@ -228,6 +188,44 @@ public class LearningSessionService {
                 mastered
         );
     }
+
+    /** Supergirl and Superman share a world (Krypton, Metropolis), so each is the other's closest fallback. */
+    static final Map<String, String> SISTER_THEME = Map.of("supergirl", "superman", "superman", "supergirl");
+
+    /**
+     * Picks an approved question for the topic. Keeping the chosen difficulty matters more than the hero theme
+     * (the difficulty is what the policy decided), so the order is: this hero at this level, the sister hero at
+     * this level, any hero at this level, this hero at any level, anything. Unseen questions first; repeats
+     * only when the student has seen everything in the topic.
+     */
+    Question pickQuestion(String topic, int difficulty, String characterTheme, Set<Long> attemptedIds) {
+        String theme = characterTheme == null || characterTheme.isBlank() ? null : characterTheme.trim().toLowerCase(Locale.ROOT);
+        List<Question> atLevel = questionRepository.findByTopicAndDifficulty(topic, difficulty);
+        List<Question> anyLevel = questionRepository.findByTopic(topic);
+        String sister = theme == null ? null : SISTER_THEME.get(theme);
+
+        List<List<Question>> tiers = new ArrayList<>();
+        if (theme != null) tiers.add(withTheme(atLevel, theme));
+        if (sister != null) tiers.add(withTheme(atLevel, sister));
+        tiers.add(atLevel);
+        if (theme != null) tiers.add(withTheme(anyLevel, theme));
+        tiers.add(anyLevel);
+
+        for (List<Question> tier : tiers) {
+            List<Question> unseen = tier.stream().filter(q -> !attemptedIds.contains(q.getId())).toList();
+            if (!unseen.isEmpty()) return unseen.get(RANDOM.nextInt(unseen.size()));
+        }
+        for (List<Question> tier : tiers) {
+            if (!tier.isEmpty()) return tier.get(RANDOM.nextInt(tier.size()));
+        }
+        return null;
+    }
+
+    private static List<Question> withTheme(List<Question> questions, String theme) {
+        return questions.stream().filter(q -> theme.equalsIgnoreCase(q.getCharacterTheme())).toList();
+    }
+
+    private static final Random RANDOM = new Random();
 
     @Transactional
     public QuestionAttemptResponse recordAttempt(Long sessionId, String userEmail, QuestionAttemptRequest request) {

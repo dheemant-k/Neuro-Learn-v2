@@ -40,6 +40,14 @@ class ProgressRulesTest {
         assertThat(MasteryRule.hardCorrectStillNeeded(7)).isZero();
     }
 
+    @Test
+    void completedSectionIsNeverLocked() {
+        assertThat(ProgressService.isSectionUnlocked(0, false, false)).isTrue();   // first section
+        assertThat(ProgressService.isSectionUnlocked(3, true, false)).isTrue();    // previous done
+        assertThat(ProgressService.isSectionUnlocked(3, false, false)).isFalse();  // not reached yet
+        assertThat(ProgressService.isSectionUnlocked(3, false, true)).isTrue();    // done earlier: stays open
+    }
+
     @ParameterizedTest(name = "{0}/{1} sections done → boss unlocked={2}")
     @CsvSource({
             "0, 6, false",
