@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 LABELS = {
     "fixed": "Fixed ramp (5 easy, 5 medium, then hard)",
-    "adaptive": "Current engine (BKT + P(L) cut-offs)",
+    "adaptive": "Original engine (BKT + P(L) cut-offs)",
     "adaptive_0.20_0.60_levelaware": "Tuned engine (0.20/0.60, level-aware)",
     "elo_target50": "Difficulty-aware Elo (50% target)",
     "ramp_remediation": "Ramp with remediation",
