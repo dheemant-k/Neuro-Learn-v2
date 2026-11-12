@@ -37,7 +37,11 @@ public final class EvaluationRunner {
                 new Scenario("zpd_far_above", -1.0, base.withZpdOffset(1.0)),
                 new Scenario("weak_start", -2.0, base),
                 new Scenario("strong_start", 0.5, base),
-                new Scenario("frustration_quit", -1.0, base.withQuitRate(0.04))
+                new Scenario("frustration_quit", -1.0, base.withQuitRate(0.04)),
+                // Inattentive learner (fixed before running): off-task 10% of the time at Q1, +1 point per
+                // question (fatigue), capped at 50%; with and without frustration quitting.
+                new Scenario("inattentive", -1.0, base.withLapses(0.10, 0.01)),
+                new Scenario("inattentive_quit", -1.0, base.withLapses(0.10, 0.01).withQuitRate(0.04))
         );
     }
 

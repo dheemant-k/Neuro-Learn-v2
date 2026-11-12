@@ -2,6 +2,7 @@
 
 > Phase 5 of [FUTURE_WORKFLOW.md](../FUTURE_WORKFLOW.md). Run on 2026-11-10; reassessed 2026-11-11
 > (every number re-run and reproduced byte for byte; app status, data check and pilot design updated).
+> 2026-11-12: added two **inattentive-learner** scenarios (§4.6); all earlier numbers unchanged.
 > Code: `backend-java/src/main/java/com/neurolearn/evaluation/` · Data and charts: [`docs/evaluation/`](evaluation/)
 > **This is a simulation study.** Real students were not involved; every result depends on the
 > assumptions in §3, which are varied in §4.3. Real-data validation needs a classroom pilot (§7).
@@ -27,6 +28,12 @@
    scenarios, beats the fixed ramp in three (weak starters, learning at own level, frustration), and in
    the frustration scenario it has both the **most mastery (44.3%) and fewer quits (44.0% vs 52.8%)** than
    the fixed ramp. It is clearly worse only when learning peaks far above the student's level.
+6. **Inattentive learners (§4.6) are a weakness of the adaptive ramp, not a strength.** With attention
+   lapses that grow with fatigue, the fixed ramp gets the most students to mastery (52.1% vs 35.0%). The
+   adaptive ramp still gives a third to half fewer too-hard questions, keeps more students when they can
+   quit (59.0% vs 68.0% quit) and leaves them with higher average ability, but it reads lapse-driven wrong
+   streaks as "not ready" and holds them at easier levels. Telling a lapse from a gap in knowledge is the
+   open problem for attention-aware adaptivity.
 
 ### Where things stand (2026-11-11)
 
@@ -68,7 +75,8 @@ All policies choose the level (1 easy, 2 medium, 3 hard) of the next question fo
 | Answering | P(correct) = c + (1 − c − s)·σ(a(θ − b)) | guess c = 0.25 (4 options), slip s = 0.05, a = 1.2 |
 | Learning | each attempt adds η·exp(−((b − θ) − δ)² / 2w²) to θ | η ~ U(0.10, 0.30) per student; peak at δ = 0.5 logits above the student; w = 1.0 |
 | True mastery | expected accuracy on level-3 items ≥ 70% | |
-| Quitting (one scenario) | after k wrong in a row, quit with probability 0.04·k | off in all other scenarios |
+| Quitting (two scenarios) | after k wrong in a row, quit with probability 0.04·k | off in all other scenarios |
+| Attention lapses (two scenarios) | on question t, off-task with probability min(0.50, 0.10 + 0.01·(t − 1)); an off-task answer is a guess (25%) and teaches nothing | off in all other scenarios |
 
 Learning peaking a little *above* the student is the "zone of proximal development" idea. It is the key
 assumption, so §4.3 varies it.
@@ -76,14 +84,15 @@ assumption, so §4.3 varies it.
 ### 3.2 Fair comparison
 
 Every student is replayed under every policy with the **same** starting ability, learning rate and random
-draws for answers and quitting (common random numbers). Differences come from the policy, not luck.
+draws for answers, quitting and attention lapses (common random numbers). Differences come from the policy, not luck.
 
 ### 3.3 Metrics
 
 - **Mastered by question 20 / 30**: share of students whose *true* ability reached mastery.
 - **Median questions to mastery**: among students who got there.
-- **Too hard**: share of questions the student had < 50% chance of answering correctly.
-- **Quit**: share of students who stopped early (frustration scenario only).
+- **Too hard**: share of questions the student had < 50% chance of answering correctly (when attentive,
+  so a lapse is not blamed on the policy's choice of level).
+- **Quit**: share of students who stopped early (quitting scenarios only).
 - **Claim correct**: when a policy first says "mastered", how often the student truly was.
 
 (A "productive 50–85% success" share is also in `summary.csv`, but it rewarded policies that kept students
@@ -135,6 +144,8 @@ Mastered by question 30:
 | Weak starters (μ = −2) | 40.7% | 34.1% | 28.4% | 24.1% | 28.8% | **45.2%** | 7.1% |
 | Strong starters (μ = +0.5) | **97.0%** | 92.2% | 95.1% | 94.8% | 76.9% | 93.5% | 64.9% |
 | Frustration → quitting | 42.3% | 37.6% | 35.2% | 37.1% | 33.5% | **44.3%** | 15.3% |
+| Inattentive (§4.6) | **52.1%** | 28.2% | 36.1% | 28.4% | 13.6% | 35.0% | 8.4% |
+| Inattentive + quitting (§4.6) | **24.1%** | 16.1% | 18.4% | 17.2% | 8.7% | 19.9% | 4.1% |
 
 ![Mastery by scenario](evaluation/mastery_by_scenario.png)
 
@@ -173,8 +184,8 @@ it was run once on the same test population, and the result is reported whicheve
 
 | | Fixed ramp | Original engine | **Adaptive ramp** |
 |---|---|---|---|
-| Scenarios won vs fixed ramp | — | 0 of 6 | **3 of 6** |
-| Scenarios won vs original engine | 6 of 6 | — | **6 of 6** |
+| Scenarios won vs fixed ramp | — | 0 of 6 | **3 of 6** (3 of 8 with §4.6) |
+| Scenarios won vs original engine | 6 of 6 | — | **6 of 6** (8 of 8 with §4.6) |
 | Baseline mastered by Q30 | **73.4%** | 61.2% | 69.7% |
 | Weak starters mastered by Q30 | 40.7% | 34.1% | **45.2%** |
 | Frustration: quit / mastered | 52.8% / 42.3% | 46.9% / 37.6% | **44.0% / 44.3%** |
@@ -192,6 +203,41 @@ it was run once on the same test population, and the result is reported whicheve
 - **In the app it replays the student's whole history in the topic**, so progress carries across
   sessions. The simulator models one 30-question run, so this matches the evaluated rule within a run
   but multi-session behaviour was not simulated.
+
+### 4.6 Inattentive learners
+
+Neuro-Learn began as an attention-aware (ADHD-focused) project, so the obvious question is how the policies
+handle a student whose wrong answers are not always about knowledge. The **inattentive** scenario adds
+attention lapses (§3.1): off-task on 10% of questions at the start, rising one point per question as fatigue
+builds (39% by question 30). An off-task answer is an impulsive guess and teaches nothing. **Inattentive +
+quitting** adds the frustration rule from §4.4. Both were specified before running, nothing was tuned, and
+the results are reported as they came out.
+
+| Policy | Inattentive: mastered by Q30 | Too hard | Mean final ability θ | + quitting: quit | + quitting: mastered |
+|---|---|---|---|---|---|
+| Fixed ramp | **52.1%** | 50.0% | 1.87 | 68.0% | **24.1%** |
+| Original engine | 28.2% | 40.0% | 1.68 | 59.5% | 16.1% |
+| Tuned engine | 36.1% | 49.3% | 1.69 | 67.2% | 18.4% |
+| Difficulty-aware Elo | 28.4% | 31.7% | 1.65 | 61.0% | 17.2% |
+| Ramp with remediation | 13.6% | **19.2%** | 1.50 | **54.8%** | 8.7% |
+| Adaptive ramp | 35.0% | 27.7% | **1.90** | 59.0% | 19.9% |
+| Random | 8.4% | 47.0% | 1.18 | 68.3% | 4.1% |
+
+- **The fixed ramp wins on mastery, clearly.** Every adaptive policy reacts to wrong answers, and lapses
+  produce wrong answers that say nothing about knowledge. By question 30 the adaptive ramp has inattentive
+  students at an average level of 2.46, against 2.86 for attentive ones (baseline) and 3.00 for the fixed
+  ramp, so fewer of them reach the hard items that lead to mastery.
+- **The adaptive ramp is still the kinder policy.** About half as many too-hard questions (27.7% vs 50.0%),
+  9 points fewer students quitting (59.0% vs 68.0%), and slightly *higher* average ability at the end
+  (1.90 vs 1.87; 1.05 vs 0.93 with quitting). It teaches the group about as much; it is slower to move
+  them to the level where mastery is measured.
+- **What this means for the project.** "Adapt to wrong answers" is not enough for inattentive learners:
+  the policy has to tell a lapse from a gap in knowledge. Possible signals, all untested: response time
+  (an off-task answer is often much faster or much slower than usual), a miss on a level the student has
+  already answered correctly several times, and the position in the session (fatigue). This is a
+  hypothesis for the next iteration, to be specified and then tested here the same way.
+- **Caveat:** the lapse model is simple: a fixed fatigue slope for everyone, independent lapses, and no
+  recovery from breaks. It is a stress test of the policies, not a model of ADHD.
 
 ---
 
@@ -245,6 +291,9 @@ split by policy directly.
 - **IRT calibration** of item difficulty (needs about 500 respondents for a stable 2PL) — this is what
   the Elo policy assumed it had.
 - **Per-topic BKT parameters** with the fitter here, once each topic has ≥ 30 students.
+- **Lapse-aware difficulty** (§4.6): don't treat every miss as a knowledge gap. Specify a rule using
+  response time and the student's record at that level, then test it in the inattentive scenarios before
+  it goes near the app.
 
 ---
 
@@ -252,7 +301,7 @@ split by policy directly.
 
 - **Simulated students.** The learning curve, item difficulties and mastery threshold are assumptions;
   real learning includes forgetting, motivation, boredom and transfer between topics, none of which are
-  modelled except crude quitting.
+  modelled except crude quitting and attention lapses (§4.6).
 - **One topic, 30 questions.** Real use spans sessions and days.
 - **The Elo policy had an advantage** (true item difficulties).
 - **Self-referential tuning.** Tuning on a simulator finds the simulator's optimum; the train/test split
@@ -272,6 +321,9 @@ So:
 4. Compare: post-test gain (primary); "Mastered" earned and questions to mastery; share of questions
    answered wrong at the served level (the "too hard" proxy); sessions left unfinished (no end time; a proper completed/abandoned status is
    Phase 7).
+5. Attention: the same comparison for students whose answers show lapse patterns (long or very short
+   response times, misses on levels already answered correctly). §4.6 predicts the fixed ramp gets them to
+   mastery more often and the adaptive ramp keeps more of them going; the pilot can check both.
 
 **Scale, honestly:** the simulated gaps are a few points (e.g. 44% vs 42% mastered with quitting). A single
 class of ~30 cannot detect differences that small. It can show feasibility, catch problems (students stuck,
@@ -294,8 +346,10 @@ cd ../docs/evaluation && python make_charts.py
 ```
 
 Unit tests (`EvaluationModelTest`, `EvaluationRunnerTest`) check the model, policies, simulator
-determinism, fitter recovery and the CSV outputs, including a regression guard on the headline ordering.
+determinism, fitter recovery, attention lapses and the CSV outputs, including a regression guard on the
+headline ordering.
 `DifficultyRampTest` covers the ramp rule the app and simulator share.
 
-Last re-run 2026-11-11: `tuning.csv`, `summary.csv`, `trajectory.csv` and `bkt_recovery.csv` were
-byte-identical to the committed files. Charts need Python with matplotlib.
+Last re-run 2026-11-12: `tuning.csv` and `bkt_recovery.csv` byte-identical; `summary.csv` and
+`trajectory.csv` gained the two inattentive scenarios, and their other rows are unchanged (the lapse draws
+use a separate random stream). Charts need Python with matplotlib.
