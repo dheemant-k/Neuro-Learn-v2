@@ -31,6 +31,21 @@ class EvaluationRunnerTest {
     }
 
     @Test
+    void attentionSetAddsInattentiveScenariosWithAttentiveReferences(@TempDir Path dir) throws Exception {
+        List<EvaluationRunner.Scenario> set = EvaluationRunner.scenarioSet("attention");
+        assertThat(set).extracting(EvaluationRunner.Scenario::name)
+                .containsExactly("baseline", "frustration_quit", "inattentive", "inattentive_quit");
+        assertThat(EvaluationRunner.scenarioSet("core")).extracting(EvaluationRunner.Scenario::name)
+                .doesNotContain("inattentive", "inattentive_quit");
+
+        List<PolicySummary> summaries = EvaluationRunner.simulate(dir, 60, 12, 3, set);
+        assertThat(summaries).hasSize(set.size() * EvaluationRunner.policies().size());
+        // Reference rows match the core run exactly (same population and draws).
+        List<PolicySummary> core = EvaluationRunner.simulate(dir.resolve("core"), 60, 12, 3);
+        assertThat(summaries.get(0).toCsv()).isEqualTo(core.get(0).toCsv());
+    }
+
+    @Test
     void fitReadsLoggedAttemptsAndFlagsTooLittleData(@TempDir Path dir) throws Exception {
         Path in = dir.resolve("attempts.csv");
         Files.writeString(in, """

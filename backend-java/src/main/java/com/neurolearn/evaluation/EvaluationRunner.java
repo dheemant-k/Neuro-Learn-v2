@@ -13,8 +13,9 @@ import java.util.*;
  * Offline evaluation (FUTURE_WORKFLOW Phase 5). Plain Java — no Spring, no database.
  *
  * <pre>
- *   simulate &lt;outDir&gt; [students=5000] [horizon=30] [seed=42]
- *       fixed vs adaptive vs random on simulated students, baseline + sensitivity scenarios
+ *   simulate &lt;outDir&gt; [students=5000] [horizon=30] [seed=42] [core|attention]
+ *       difficulty policies on simulated students; "core" = baseline + sensitivity scenarios
+ *       (docs/evaluation.md), "attention" = inattentive learners (docs/evaluation_attention.md)
  *       → outDir/summary.csv, outDir/trajectory.csv
  *   fit &lt;attempts.csv&gt; &lt;out.csv&gt;
  *       fit BKT per topic to logged attempts (columns: student,topic,timestamp,correct)
@@ -29,6 +30,7 @@ public final class EvaluationRunner {
     record Scenario(String name, double meanTheta0, LearningModel model) {
     }
 
+    /** Evaluation 1 (docs/evaluation.md): baseline and the five sensitivity scenarios. */
     static List<Scenario> scenarios() {
         LearningModel base = LearningModel.standard();
         return List.of(
@@ -37,12 +39,33 @@ public final class EvaluationRunner {
                 new Scenario("zpd_far_above", -1.0, base.withZpdOffset(1.0)),
                 new Scenario("weak_start", -2.0, base),
                 new Scenario("strong_start", 0.5, base),
-                new Scenario("frustration_quit", -1.0, base.withQuitRate(0.04)),
-                // Inattentive learner (fixed before running): off-task 10% of the time at Q1, +1 point per
-                // question (fatigue), capped at 50%; with and without frustration quitting.
-                new Scenario("inattentive", -1.0, base.withLapses(0.10, 0.01)),
-                new Scenario("inattentive_quit", -1.0, base.withLapses(0.10, 0.01).withQuitRate(0.04))
+                new Scenario("frustration_quit", -1.0, base.withQuitRate(0.04))
         );
+    }
+
+    /**
+     * Evaluation 2 (docs/evaluation_attention.md): inattentive learners, fixed before running — off-task
+     * 10% of the time at Q1, +1 point per question (fatigue), capped at 50% — with and without frustration
+     * quitting. Baseline and frustration_quit are repeated as attentive reference points (same numbers as
+     * Evaluation 1, since the populations and random draws are the same).
+     */
+    static List<Scenario> attentionScenarios() {
+        LearningModel base = LearningModel.standard();
+        LearningModel inattentive = base.withLapses(0.10, 0.01);
+        return List.of(
+                new Scenario("baseline", -1.0, base),
+                new Scenario("frustration_quit", -1.0, base.withQuitRate(0.04)),
+                new Scenario("inattentive", -1.0, inattentive),
+                new Scenario("inattentive_quit", -1.0, inattentive.withQuitRate(0.04))
+        );
+    }
+
+    static List<Scenario> scenarioSet(String name) {
+        return switch (name) {
+            case "core" -> scenarios();
+            case "attention" -> attentionScenarios();
+            default -> throw new IllegalArgumentException("unknown scenario set " + name + " (use core or attention)");
+        };
     }
 
     /**
@@ -66,14 +89,15 @@ public final class EvaluationRunner {
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.err.println("usage: simulate <outDir> [students] [horizon] [seed] | tune <out.csv> [students] [seed] | fit <attempts.csv> <out.csv> | recovery <out.csv> [seed]");
+            System.err.println("usage: simulate <outDir> [students] [horizon] [seed] [core|attention] | tune <out.csv> [students] [seed] | fit <attempts.csv> <out.csv> | recovery <out.csv> [seed]");
             System.exit(2);
         }
         switch (args[0]) {
             case "simulate" -> simulate(Path.of(args[1]),
                     args.length > 2 ? Integer.parseInt(args[2]) : 5000,
                     args.length > 3 ? Integer.parseInt(args[3]) : 30,
-                    args.length > 4 ? Long.parseLong(args[4]) : 42L);
+                    args.length > 4 ? Long.parseLong(args[4]) : 42L,
+                    scenarioSet(args.length > 5 ? args[5] : "core"));
             case "tune" -> tune(Path.of(args[1]),
                     args.length > 2 ? Integer.parseInt(args[2]) : 2000,
                     args.length > 3 ? Long.parseLong(args[3]) : 1L);
@@ -86,11 +110,15 @@ public final class EvaluationRunner {
     // ── simulate ──────────────────────────────────────────────────
 
     static List<PolicySummary> simulate(Path outDir, int students, int horizon, long seed) throws IOException {
+        return simulate(outDir, students, horizon, seed, scenarios());
+    }
+
+    static List<PolicySummary> simulate(Path outDir, int students, int horizon, long seed, List<Scenario> scenarioSet) throws IOException {
         Files.createDirectories(outDir);
         List<PolicySummary> summaries = new ArrayList<>();
         try (PrintWriter traj = writer(outDir.resolve("trajectory.csv"))) {
             traj.println("scenario,policy,step,mean_theta,share_mastered,mean_level,mean_p_correct,share_productive,mean_believed_mastery,share_active");
-            for (Scenario sc : scenarios()) {
+            for (Scenario sc : scenarioSet) {
                 List<Simulator.Student> pop = Simulator.population(students, sc.meanTheta0(), seed);
                 Simulator sim = new Simulator(sc.model());
                 for (DifficultyPolicy policy : policies()) {

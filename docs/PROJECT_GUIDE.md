@@ -3,8 +3,8 @@
 A single document for explaining NeuroLearn to an examiner: what it does, how every part works, what
 research it builds on, why each design choice was made, and how to answer the hard questions.
 
-Related documents: [README.md](../README.md) (full vision), [evaluation.md](evaluation.md) (simulation
-study), [deployment.md](deployment.md), [AI_FUTURE_SCOPE.md](AI_FUTURE_SCOPE.md),
+Related documents: [README.md](../README.md) (full vision), [evaluation.md](evaluation.md) (Evaluation 1:
+simulation study), [evaluation_attention.md](evaluation_attention.md) (Evaluation 2: inattentive learners), [deployment.md](deployment.md), [AI_FUTURE_SCOPE.md](AI_FUTURE_SCOPE.md),
 [FUTURE_WORKFLOW.md](../FUTURE_WORKFLOW.md) (phase plan).
 
 ---
@@ -246,7 +246,7 @@ the topic. One definition used everywhere (roadmap badge, dashboards, teacher ro
 | Simulated student | Item response model with guessing: P(correct) = c + (1 − c − s)·σ(a(θ − b)); ability θ grows most on items slightly above the student (zone of proximal development) | Ground truth the policies can't see, so "truly mastered" can be measured |
 | Difficulty-aware Elo | Ability estimate updated by surprise, targets 50% success | A stronger, difficulty-aware baseline (like IRT) |
 | BKT fitter | Maximum-likelihood fit of P(L₀), P(T), P(G), P(S) (grid search + coordinate refinement, constraints against degenerate fits) | To fit real parameters once there is data; verified by recovering known parameters within ±0.02 |
-| Attention lapses | Off-task chance rising with fatigue; an off-task answer is a guess | Stress test for inattentive learners (§4.6 of evaluation.md) |
+| Attention lapses | Off-task chance rising with fatigue; an off-task answer is a guess | Stress test for inattentive learners (Evaluation 2, evaluation_attention.md) |
 
 ### 5.5 LLM
 
@@ -277,25 +277,40 @@ checked and removed unverifiable claims; that shows rigour.
 
 ---
 
-## 7. What the evaluation found (short version)
+## 7. What the evaluations found (short version)
 
-Full detail: [evaluation.md](evaluation.md). 5,000 simulated students, 30 questions, seven policies, eight
-scenarios, separate training and test populations, same random draws for every policy.
+Two separate simulation studies with the same simulator, seven policies, 5,000 simulated students, 30
+questions, separate training and test populations, and the same random draws for every policy.
+
+### Evaluation 1: attentive students ([evaluation.md](evaluation.md), six scenarios)
 
 | Finding | Number |
 |---|---|
 | Original BKT engine loses to a fixed ramp | 61.2% vs 73.4% mastered (baseline) |
 | BKT's "Mastered" claim is premature | claimed at a median of question 5; correct 0.0% of the time |
-| Adaptive ramp beats the original engine | 8 of 8 scenarios |
+| Adaptive ramp beats the original engine | 6 of 6 scenarios |
 | Adaptive ramp vs fixed ramp, weak starters | **45.2% vs 40.7%** mastered |
 | Adaptive ramp vs fixed ramp, frustration-prone | **44.0% vs 52.8% quit**, 44.3% vs 42.3% mastered |
 | Too-hard questions (baseline) | **25.3% vs 38.3%** |
-| Inattentive learners | fixed ramp better at mastery (52.1% vs 35.0%); adaptive ramp gentler and keeps more students |
 
-**The story to tell:** for the *average* student a well-designed fixed sequence is as good as
-adaptivity. Adaptivity pays off for the students a fixed sequence loses: weak starters and students who
-give up. Lapse-driven mistakes are the open problem (the app already logs response time, the most
-promising signal). All of it is simulation; a two-class pilot design is ready (evaluation.md §7.1).
+**Story:** for the *average* student a well-designed fixed sequence is as good as adaptivity. Adaptivity
+pays off for the students a fixed sequence loses: weak starters and students who give up.
+
+### Evaluation 2: inattentive students ([evaluation_attention.md](evaluation_attention.md))
+
+Attention lapses that grow with fatigue (10% → 39% off-task over 30 questions); an off-task answer is a guess.
+
+| Finding | Number |
+|---|---|
+| Fixed ramp gets more to mastery | 52.1% vs 35.0% (adaptive ramp) |
+| Adaptive ramp is gentler | 27.7% vs 50.0% too-hard questions |
+| Adaptive ramp keeps more students | 59.0% vs 68.0% quit (with quitting) |
+| Why | lapse-driven misses hold the adaptive ramp at easier levels (2.46 vs 3.00 at question 30) |
+
+**Story:** adapting to wrong answers isn't enough for inattentive learners; the system has to tell a
+lapse from a knowledge gap. The app already logs response time, the most promising signal.
+
+Both are simulations; a two-class pilot design is ready (evaluation.md §7.1).
 
 ---
 
@@ -378,7 +393,7 @@ About 135 automated tests across 17 test classes, plus the application-context t
 3. BKT treats a topic as one skill and ignores item difficulty (mitigated by `MasteryRule`).
 4. Two chapters of content; the AI pipeline is how content scales.
 5. Free-tier hosting has cold starts.
-6. The adaptive ramp misreads attention lapses as gaps in knowledge (found in §4.6 of the evaluation).
+6. The adaptive ramp misreads attention lapses as gaps in knowledge (found in Evaluation 2).
 
 ---
 
@@ -408,8 +423,8 @@ literature. Our prototype had an LSTM; we replaced it because it couldn't be tra
 
 **Q: How do you know the simulator is not biased toward your policy?**
 The adaptive ramp's rules were written before it was run, nothing was tuned on the test population,
-every policy sees the same students and random draws, and we vary the assumptions in eight scenarios. It
-loses in some of them (e.g. inattentive learners), and we report that.
+every policy sees the same students and random draws, and we vary the assumptions in six scenarios (Evaluation 1)
+plus a separate inattentive-learner study (Evaluation 2). It loses in some of them (e.g. inattentive learners), and we report that.
 
 **Q: What stops the AI from giving students a wrong question?**
 Four layers: a strict JSON schema, validation in code, an independent solve that must agree, and teacher

@@ -3,7 +3,6 @@
     python make_charts.py
 """
 import csv
-import textwrap
 import os
 
 import matplotlib
@@ -38,8 +37,6 @@ SCENARIOS = {
     "weak_start": "Weak starters",
     "strong_start": "Strong starters",
     "frustration_quit": "Frustration → quitting",
-    "inattentive": "Inattentive",
-    "inattentive_quit": "Inattentive + quitting",
 }
 
 
@@ -74,14 +71,14 @@ fig.savefig(os.path.join(HERE, "mastery_over_time.png"), dpi=150)
 plt.close(fig)
 
 # 2. Mastered by question 30 across scenarios
-fig, ax = plt.subplots(figsize=(14, 4.6))
+fig, ax = plt.subplots(figsize=(12, 4.6))
 scs = list(SCENARIOS)
 width = 0.8 / len(ORDER)
 for i, p in enumerate(ORDER):
     vals = [float(next(r for r in summary if r["scenario"] == s and r["policy"] == p)["mastered_by_end"]) * 100 for s in scs]
     ax.bar([j + i * width for j in range(len(scs))], vals, width, label=LABELS[p], color=COLORS[p])
 ax.set_xticks([j + width * (len(ORDER) - 1) / 2 for j in range(len(scs))])
-ax.set_xticklabels([textwrap.fill(SCENARIOS[s], 16) for s in scs], fontsize=9)
+ax.set_xticklabels([SCENARIOS[s] for s in scs], fontsize=9)
 ax.set_ylabel("% truly mastered by question 30")
 ax.set_title("Mastery within 30 questions, by learning assumption")
 ax.legend(fontsize=8, frameon=False, ncol=3, loc="upper left")
