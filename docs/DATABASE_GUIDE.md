@@ -33,7 +33,7 @@ Useful psql commands:
 
 For a GUI, use DBeaver or pgAdmin with these settings: host `localhost`, port `5433`, database `neurolearn`, user `neurolearn`.
 
-The schema is created only by Flyway migrations (`backend-java/src/main/resources/db/migration/V1…V15`).
+The schema is created only by Flyway migrations (`backend-java/src/main/resources/db/migration/V1…V16`).
 Hibernate is set to `validate`, so it never changes tables. If code and schema disagree, the app refuses to start.
 
 ---
@@ -56,7 +56,7 @@ Hibernate is set to `validate`, so it never changes tables. If code and schema d
 |---|---|---|---|
 | People | `users` | one login account (student, teacher or parent) | 13 |
 | People | `student_profiles` | the game and learning state of one student | 10 |
-| Content | `questions` | one multiple-choice question | 330 |
+| Content | `questions` | one multiple-choice question | 375 (254 approved) |
 | Content | `question_misconceptions` | the mistake behind one wrong option | 603 |
 | Learning | `learning_sessions` | one quiz sitting | 61 |
 | Learning | `question_attempts` | **one answer** (the raw evidence) | 66 |
@@ -138,7 +138,7 @@ so it isn't a meaningful "overall" number. Every screen computes overall P(L) as
   - `QuestionGenerationService`, as duplicate check and examples.
   - The teacher question bank.
 
-Local bank: Batman 59, Superman 63 and Supergirl 87 approved; 121 AI drafts are pending.
+Approved bank (the same on every database, all from seed migrations): Batman 74, Superman 75, Supergirl 105 = 254. Every section has questions at all three levels for every hero in Chapter 2, and at least two level-3 questions per section overall (V16; guarded by `QuestionBankIntegrationTest`). The local database also holds 121 unapproved AI drafts.
 
 ### 3.4 `question_misconceptions` (V10)
 
@@ -473,7 +473,7 @@ Only children linked in `parent_student_links`. Creating a link needs no approva
 - **SET NULL:** questions the user generated keep existing with `created_by_user_id` = NULL, and attempts keep existing with `session_id` = NULL if only the session is deleted.
 
 **Q19. How do schema changes reach production?**
-Flyway. Each change is a new numbered SQL file (V1–V15). On start-up the app applies any that haven't run and records them in `flyway_schema_history`. Hibernate only validates. The same files build the test database (Testcontainers), the local Docker database and Neon.
+Flyway. Each change is a new numbered SQL file (V1–V16). On start-up the app applies any that haven't run and records them in `flyway_schema_history`. Hibernate only validates. The same files build the test database (Testcontainers), the local Docker database and Neon.
 
 **Q20. How is AI-generated content kept out of students' quizzes until checked?**
 It is saved with `status = PENDING` and `source = LLM`, with provenance (model, prompt version, who asked). Every student query filters `status = APPROVED`, and only a teacher action sets APPROVED.

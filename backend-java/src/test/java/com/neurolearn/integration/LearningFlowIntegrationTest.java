@@ -61,17 +61,41 @@ class LearningFlowIntegrationTest extends IntegrationTestBase {
 
     @Test
     void missingHeroFallsBackToTheSisterHeroAtTheChosenLevel() throws Exception {
-        // The seeded bank has no level-1 Supergirl question for the quadratic formula. A new student starts at
-        // level 1, so the fallback must keep level 1 and prefer Superman (same world) over any other hero or level.
+        // Supergirl has no level-3 word problems. Six correct answers in a row take a new student from level 1
+        // to level 3 (3 in a row skips ahead), so the 7th question must stay at level 3 and come from Superman
+        // (same world) rather than from another hero or another level.
         String token = registerFresh("STUDENT");
-        long sessionId = postJson("/api/sessions/start", token, Map.of("topic", "quad_formula")).get("id").asLong();
+        long sessionId = postJson("/api/sessions/start", token, Map.of("topic", "word_problems")).get("id").asLong();
+        for (int i = 0; i < 6; i++) {
+            JsonNode q = getJson("/api/sessions/" + sessionId + "/next-question?topic=word_problems&characterTheme=supergirl", token);
+            answer(token, sessionId, q.get("question").get("id").asLong(), true);
+        }
 
         JsonNode next = getJson("/api/sessions/" + sessionId
-                + "/next-question?topic=quad_formula&characterTheme=supergirl", token);
+                + "/next-question?topic=word_problems&characterTheme=supergirl", token);
+
+        assertThat(next.get("currentDifficulty").asInt()).isEqualTo(3);
+        assertThat(next.get("question").get("difficulty").asInt()).isEqualTo(3);
+        assertThat(next.get("question").get("characterTheme").asText()).isEqualTo("superman");
+    }
+
+    @Test
+    void whenALevelRunsOutTheNearestEasierLevelIsServed() throws Exception {
+        // quad_formula has three level-1 questions in all. A student who keeps missing stays at level 1; once all
+        // three are used, the 4th question should come from level 2, not jump to level 3.
+        String token = registerFresh("STUDENT");
+        long sessionId = postJson("/api/sessions/start", token, Map.of("topic", "quad_formula")).get("id").asLong();
+        int levelOneTotal = questionRepository.findByTopicAndDifficulty("quad_formula", 1).size();
+        for (int i = 0; i < levelOneTotal; i++) {
+            JsonNode q = getJson("/api/sessions/" + sessionId + "/next-question?topic=quad_formula&characterTheme=batman", token);
+            assertThat(q.get("question").get("difficulty").asInt()).isEqualTo(1);
+            answer(token, sessionId, q.get("question").get("id").asLong(), false);
+        }
+
+        JsonNode next = getJson("/api/sessions/" + sessionId + "/next-question?topic=quad_formula&characterTheme=batman", token);
 
         assertThat(next.get("currentDifficulty").asInt()).isEqualTo(1);
-        assertThat(next.get("question").get("difficulty").asInt()).isEqualTo(1);
-        assertThat(next.get("question").get("characterTheme").asText()).isEqualTo("superman");
+        assertThat(next.get("question").get("difficulty").asInt()).isEqualTo(2);
     }
 
     @Test

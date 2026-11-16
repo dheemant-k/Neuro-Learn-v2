@@ -105,6 +105,13 @@ Questions are stored in a database and selected by the adaptive engine, ensuring
 
 # 4. Adaptive Learning Engine
 
+> **As built (November 2026).** Sections 4–17 are the original proposal. What the code actually does:
+> the next level comes from the **adaptive ramp** (correct/incorrect streaks over the student's history in
+> the topic), knowledge is tracked per topic with **Bayesian Knowledge Tracing**, and "Mastered" needs
+> P(L) ≥ 0.85 **and** two correct level-3 answers. **Response time is logged on every answer but no decision
+> uses it yet** (it is the planned signal for telling attention lapses from gaps in knowledge). Details:
+> [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) and [docs/DATABASE_GUIDE.md](docs/DATABASE_GUIDE.md).
+
 The adaptive engine is the **core intelligence of NeuroLearn**.
 
 It analyses measurable learning signals such as:
@@ -1090,7 +1097,7 @@ Where:
 - **\( P(T) = 0.18 \)**: Probability of transitioning from unlearned to learned state after an attempt.
 - **\( P(G) = 0.25 \)**: Guess probability (correct answer despite not knowing the skill, 4-choice MCQ).
 - **\( P(S) = 0.10 \)**: Slip probability (incorrect answer despite knowing the skill).
-- **Mastery Threshold**: \( P(L) \ge 0.85 \) (Bloom's Mastery Learning Criterion). Shown as "Mastered" on dashboards.
+- **Mastery Threshold**: \( P(L) \ge 0.85 \) (Bloom's Mastery Learning Criterion) **and** at least 2 correct level-3 answers in the topic (`MasteryRule`). Shown as "Mastered" on dashboards.
 - **Section Unlock Threshold**: at least 3 answers, and \( P(L) \ge 0.50 \) *or* 3 correct answers. Deliberately lower than mastery so a student can move on to the next roadmap section before fully mastering the current one; mastery keeps being tracked.
 
 These values live in `BktParameters.defaultParameters()` and `ProgressService`; keep this list in sync with the code.

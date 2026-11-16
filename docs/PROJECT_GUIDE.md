@@ -58,7 +58,7 @@ flowchart LR
     S --> L[ai/ LlmClient<br/>Gemini or Fake]
     S --> R[Repositories<br/>Spring Data JPA]
   end
-  R --> DB[(PostgreSQL<br/>Flyway V1–V11)]
+  R --> DB[(PostgreSQL<br/>Flyway V1–V16)]
   L -. teacher-only .-> G[Google Gemini API]
   E[evaluation/<br/>offline simulator] -. shares DifficultyRamp .- A
 ```
@@ -148,8 +148,10 @@ Inside `LearningSessionService.getNextAdaptiveQuestion`:
    `FIXED_RAMP` or `BKT_THRESHOLDS`.
 5. For the ramps, **replay the student's whole history on this topic** through `DifficultyRamp` to get
    the level, so progress carries across sessions.
-6. Pick a random **approved**, not-yet-seen question at that level, in the student's chosen hero theme,
-   with fallbacks (any theme, any level) so a student never gets stuck.
+6. Pick a random **approved**, not-yet-seen question at that level (`pickQuestion`). At each level it tries
+   the student's hero, then the sister hero (Supergirl/Superman), then any hero. If the level has nothing
+   unseen it moves to the **nearest** level, easier first (level 1 falls back to 2, never straight to 3).
+   Repeats only once everything in the topic has been seen.
 7. Remember *why* this question was served (action, reason, strategy) on the session; it is copied onto
    the attempt for later analysis.
 8. Return the question **without the correct answer** (`QuestionResponse.forStudent`).
@@ -320,7 +322,7 @@ Both are simulations; a two-class pilot design is ready (evaluation.md §7.1).
 |---|---|---|---|
 | **Java 17 + Spring Boot** | Course language; mature ecosystem for security, validation, data access and testing; strong typing for business rules; dependency injection makes services testable | Node/Express, Django, keep Flask prototype | More boilerplate and slower cold start than Node |
 | **PostgreSQL** | The data is **relational** (users → profiles → attempts → questions; classes ↔ enrollments ↔ students; parents ↔ children); needs foreign keys, joins, aggregates for analytics and **ACID transactions** for grading + XP + P(L) updates together. Open source, free managed hosting (Neon). | MySQL (would also work; Postgres has stricter SQL, better JSON and window functions); MongoDB (no joins/foreign keys, our analytics are join-heavy); SQLite (no concurrent multi-user writes, not for hosting) | Need a schema migration tool and a running server |
-| **Flyway migrations** (`ddl-auto: validate`) | Schema is versioned code (V1–V11), reviewed in Git, identical in dev, test, Docker and cloud; Hibernate only *validates*, never changes the schema | Hibernate auto-update (unsafe, can lose data), Liquibase (heavier) | Every schema change needs a new migration file |
+| **Flyway migrations** (`ddl-auto: validate`) | Schema is versioned code (V1–V16), reviewed in Git, identical in dev, test, Docker and cloud; Hibernate only *validates*, never changes the schema | Hibernate auto-update (unsafe, can lose data), Liquibase (heavier) | Every schema change needs a new migration file |
 | **JPA / Spring Data** | Less SQL boilerplate; custom JPQL where it matters (approved-only queries, aggregate counts) | Plain JDBC, MyBatis | Must watch N+1 queries (we batch, e.g. `hardCorrectByStudentAndTopic`) |
 | **JWT, stateless** | API and frontend are on different hosts; no server session store; scales horizontally | Server sessions with cookies | Can't revoke a token before expiry (24 h); mitigated by short expiry |
 | **BCrypt** | Slow, salted, standard password hashing | SHA-256 (too fast, unsafe) | Slightly slower login |
@@ -379,7 +381,7 @@ Seed migrations: V2 (Batman questions), V5 (demo accounts and history), V6 (Supe
 
 ## 11. Testing and quality
 
-About 135 automated tests across 17 test classes, plus the application-context test, run in CI on every pull request:
+152 automated backend tests, run in CI on every pull request:
 - **Unit:** BKT updates (`BktEngineTest`), ramp rules (`DifficultyRampTest`), progress and teacher rules,
   LLM output parsing and validation, LaTeX cleaning, the simulator and fitter (`EvaluationModelTest`).
 - **Integration** (real PostgreSQL via Testcontainers): authorization for every role, classes, difficulty
