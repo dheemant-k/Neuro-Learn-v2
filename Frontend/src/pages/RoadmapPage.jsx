@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { fetchProgress } from "../utils/api";
+import { useEscapeKey } from "../utils/useEscapeKey";
 
 export default function RoadmapPage({ chapter, character, onLearn, onTest, onFinalBoss, onBack }) {
   const [modal, setModal] = useState(null); // section object or null
   const [progressData, setProgressData] = useState(null);
   const chapterId = chapter?.id || "linear_eq_2var";
+  useEscapeKey(Boolean(modal), () => setModal(null));
 
   // Manual refresh ("Sync Progress" button).
   const loadProgress = async () => {

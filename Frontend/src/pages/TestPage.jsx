@@ -108,6 +108,7 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     setCurrentQ(q);
     setSelected(null);
     setLocked(false);
+    submittingRef.current = false;
     setShowExplain(false);
     setBktUpdate(null);
     setEliminatedOptions([]);
@@ -137,25 +138,38 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     startRef.current = Date.now();
   };
 
+  // Start-up runs once per (section, hero). React StrictMode mounts effects twice in development; without
+  // this, each quiz opened two sessions (one left empty) and asked the server for two first questions.
+  const initRef = useRef({ key: null, promise: null });
+
   // 1. Initialize session on mount
   useEffect(() => {
     let mounted = true;
+    const key = `${section.id}|${character?.id || ""}`;
+    if (initRef.current.key !== key) {
+      initRef.current = {
+        key,
+        promise: (async () => {
+          const sessionRes = await startLearningSession({ topic: section.id }).catch(() => null);
+          // No session (backend down / not a student): never borrow another session id,
+          // fall through to the offline sample question below instead.
+          const sId = sessionRes ? sessionRes.id : null;
+          const adaptiveRes = sId
+            ? await fetchNextAdaptiveQuestion({
+                sessionId: sId,
+                topic: section.id,
+                character: character?.id || "superman",
+              })
+            : null;
+          return { sId, adaptiveRes };
+        })(),
+      };
+    }
     async function initSession() {
       setLoading(true);
       try {
-        const sessionRes = await startLearningSession({ topic: section.id }).catch(() => null);
-        // No session (backend down / not a student): never borrow another session id,
-        // fall through to the offline sample question below instead.
-        const sId = sessionRes ? sessionRes.id : null;
+        const { sId, adaptiveRes } = await initRef.current.promise;
         if (mounted) setSessionId(sId);
-
-        const adaptiveRes = sId
-          ? await fetchNextAdaptiveQuestion({
-              sessionId: sId,
-              topic: section.id,
-              character: character?.id || "superman",
-            })
-          : null;
         if (mounted && adaptiveRes?.question) {
           setAdaptiveInfo(adaptiveRes);
           displayQuestion(adaptiveRes.question, adaptiveRes);
@@ -226,8 +240,11 @@ export default function TestPage({ section, character, onFinish, onBack }) {
   };
 
   // Submit Answer
+  const submittingRef = useRef(false);
   const submit = async () => {
     if (!currentQ || selected === null || locked || shuffledOptions.length === 0) return;
+    // A second call before React re-renders with locked=true would record the answer twice.
+    if (submittingRef.current) return;
 
     const chosenOption = shuffledOptions[selected];
     if (eliminatedOptions.includes(chosenOption?.key)) return;
@@ -235,6 +252,7 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     const responseTimeMs = Date.now() - startRef.current;
     const chosenKey = chosenOption?.key;
 
+    submittingRef.current = true;
     setLocked(true);
 
     // Graded on the server; the browser only learns the answer after submitting.
@@ -253,6 +271,7 @@ export default function TestPage({ section, character, onFinish, onBack }) {
         });
       } catch (err) {
         console.warn("Failed recording attempt:", err);
+        submittingRef.current = false;
         setLocked(false);
         setHeroQuote("Signal lost before your answer reached the Fortress. Lock it in again!");
         return;
@@ -322,7 +341,13 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     }
   };
 
+  // One advance at a time: Enter on the focused Next button fires both the hotkey and the click,
+  // which used to request two next questions (or finish the session twice).
+  const advancingRef = useRef(false);
+
   const next = async () => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
     sound.playClick();
     setReactionState("idle");
     const nextIdx = qIndex + 1;
@@ -357,6 +382,7 @@ export default function TestPage({ section, character, onFinish, onBack }) {
       console.warn("Failed loading next question:", err);
     } finally {
       setLoading(false);
+      advancingRef.current = false;
     }
   };
 
@@ -379,9 +405,12 @@ export default function TestPage({ section, character, onFinish, onBack }) {
             setSelected(idx);
           }
         } else if (e.key === "Enter" && selected !== null) {
+          // Handled here; stop the browser from also "clicking" whichever button has focus.
+          e.preventDefault();
           actionsRef.current.submit();
         }
       } else if (e.key === "Enter") {
+        e.preventDefault();
         actionsRef.current.next();
       }
     };
@@ -389,14 +418,25 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [locked, selected, shuffledOptions, eliminatedOptions, showScratchpad]);
 
-  // Scratchpad Canvas drawing logic
+  // Scratchpad Canvas drawing logic.
+  // The canvas is 700×180 internally but stretched to the card's width, so pointer positions are scaled
+  // into canvas pixels (otherwise the line drifts away from the pen). Pointer events cover mouse, touch and pen.
+  const canvasPoint = (canvas, e) => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) * canvas.width) / rect.width,
+      y: ((e.clientY - rect.top) * canvas.height) / rect.height,
+    };
+  };
+
   const startDrawing = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    canvas.setPointerCapture?.(e.pointerId);
     const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
+    const p = canvasPoint(canvas, e);
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.moveTo(p.x, p.y);
     setIsDrawing(true);
   };
 
@@ -405,8 +445,8 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    const p = canvasPoint(canvas, e);
+    ctx.lineTo(p.x, p.y);
     ctx.strokeStyle = "#38bdf8";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
@@ -432,6 +472,22 @@ export default function TestPage({ section, character, onFinish, onBack }) {
     }
     if (tid.includes("elimination")) {
       return "💡 Elimination Strategy: Multiply so the coefficients of x or y match. If the signs are opposite, ADD the equations; if same, SUBTRACT.";
+    }
+    // Quadratic sections first: "quad_graphing" also contains "graphing".
+    if (tid === "quad_factoring") {
+      return "💡 Factoring Strategy: For x² + bx + c, find two numbers that multiply to c and add to b. Then set each bracket to zero.";
+    }
+    if (tid === "quad_formula") {
+      return "💡 Formula Strategy: Write the equation as ax² + bx + c = 0 first, then x = (−b ± √(b² − 4ac)) / 2a. Watch the sign of b.";
+    }
+    if (tid === "quad_discriminant") {
+      return "💡 Discriminant Strategy: D = b² − 4ac. D > 0: two real roots; D = 0: one repeated root; D < 0: no real roots.";
+    }
+    if (tid === "quad_graphing") {
+      return "💡 Parabola Strategy: The vertex is at x = −b / 2a. If a > 0 it opens up (minimum); if a < 0 it opens down (maximum).";
+    }
+    if (tid.startsWith("quad")) {
+      return "💡 Quadratic Strategy: Get everything on one side so it equals zero, then factor or use the quadratic formula. Check both roots make sense.";
     }
     if (tid.includes("graphing")) {
       return "💡 Graphing Strategy: Find intercepts: set x = 0 to get the y-intercept, set y = 0 to get the x-intercept. Plot the two points!";
@@ -657,10 +713,10 @@ export default function TestPage({ section, character, onFinish, onBack }) {
               ref={canvasRef}
               width={700}
               height={180}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
+              onPointerDown={startDrawing}
+              onPointerMove={draw}
+              onPointerUp={stopDrawing}
+              onPointerCancel={stopDrawing}
               className="w-full bg-slate-900/90 rounded-2xl border border-slate-800 cursor-crosshair touch-none"
             />
           </div>
@@ -708,17 +764,19 @@ export default function TestPage({ section, character, onFinish, onBack }) {
               <div className="space-y-4">
                 {(() => {
                   const raw = currentQ?.questionText || "";
-                  const colonIdx = raw.indexOf(":");
-                  const hasPrefix = colonIdx > 0 && colonIdx < 50;
-                  const prefix = hasPrefix ? raw.slice(0, colonIdx).trim() : null;
-                  const body = hasPrefix ? raw.slice(colonIdx + 1).trim() : raw;
+                  // Seed questions open with an emoji title ("🦇 Batcave Grid: ..."). Only split those off;
+                  // ordinary sentences with an early colon ("Supergirl analyzes a system: ...") stay whole.
+                  const titled = raw.match(/^(\p{Extended_Pictographic}️?)\s*([^:]{1,48}):\s*([\s\S]*)$/u);
+                  const prefixIcon = titled ? titled[1] : null;
+                  const prefixText = titled ? titled[2].trim() : null;
+                  const body = titled ? titled[3].trim() : raw;
 
                   return (
                     <div className="space-y-3">
-                      {prefix && (
+                      {prefixIcon && (
                         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-indigo-500/20 border border-sky-400/40 text-sky-200 text-xs font-bold tracking-wide shadow-md">
-                          <span className="text-base">{prefix.slice(0, 2)}</span>
-                          <span>{prefix.slice(2).trim()}</span>
+                          <span className="text-base">{prefixIcon}</span>
+                          <span>{prefixText}</span>
                         </div>
                       )}
                       <div className="text-base md:text-lg text-slate-100 font-sans leading-relaxed tracking-wide font-medium">
