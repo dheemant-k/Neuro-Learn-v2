@@ -194,9 +194,9 @@ public class LearningSessionService {
 
     /**
      * Picks an approved question for the topic. Keeping the chosen difficulty matters more than the hero theme
-     * (the difficulty is what the policy decided), so the order is: this hero at this level, the sister hero at
-     * this level, any hero at this level, this hero at any level, anything. Unseen questions first; repeats
-     * only when the student has seen everything in the topic.
+     * (the difficulty is what the policy decided), so each level is tried as: this hero, the sister hero, any
+     * hero. Levels are tried nearest first, easier before harder (level 1 falls back to 2, never straight to 3;
+     * level 2 falls back to 1, then 3). Unseen questions first; repeats only when the student has seen everything.
      */
     Question pickQuestion(String topic, int difficulty, String characterTheme, Set<Long> attemptedIds) {
         String theme = characterTheme == null || characterTheme.isBlank() ? null : characterTheme.trim().toLowerCase(Locale.ROOT);
@@ -204,11 +204,20 @@ public class LearningSessionService {
         List<Question> anyLevel = questionRepository.findByTopic(topic);
         String sister = theme == null ? null : SISTER_THEME.get(theme);
 
+        List<Integer> levels = new ArrayList<>(List.of(difficulty));
+        for (int d = 1; d <= 2; d++) {
+            for (int lvl : new int[]{difficulty - d, difficulty + d}) {
+                if (lvl >= 1 && lvl <= 3) levels.add(lvl);
+            }
+        }
         List<List<Question>> tiers = new ArrayList<>();
-        if (theme != null) tiers.add(withTheme(atLevel, theme));
-        if (sister != null) tiers.add(withTheme(atLevel, sister));
-        tiers.add(atLevel);
-        if (theme != null) tiers.add(withTheme(anyLevel, theme));
+        for (int lvl : levels) {
+            List<Question> qs = lvl == difficulty ? atLevel
+                    : anyLevel.stream().filter(q -> q.getDifficulty() != null && q.getDifficulty() == lvl).toList();
+            if (theme != null) tiers.add(withTheme(qs, theme));
+            if (sister != null) tiers.add(withTheme(qs, sister));
+            tiers.add(qs);
+        }
         tiers.add(anyLevel);
 
         for (List<Question> tier : tiers) {
