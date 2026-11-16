@@ -33,7 +33,7 @@ Useful psql commands:
 
 For a GUI, use DBeaver or pgAdmin with these settings: host `localhost`, port `5433`, database `neurolearn`, user `neurolearn`.
 
-The schema is created only by Flyway migrations (`backend-java/src/main/resources/db/migration/V1…V14`).
+The schema is created only by Flyway migrations (`backend-java/src/main/resources/db/migration/V1…V15`).
 Hibernate is set to `validate`, so it never changes tables. If code and schema disagree, the app refuses to start.
 
 ---
@@ -368,8 +368,9 @@ What this means:
 - **Demo history is counters only.** V5 seeded `topic_progress` for Bruce, Dick and Jason so the dashboards aren't
   empty, but no individual answers. That is why totals come from `topic_progress`. It is also why Dick and Jason can
   never show "Mastered": they have no level-3 answers in the log.
-- **More sessions than answers.** In development, React StrictMode runs the quiz page's start-up effect twice, so
-  each quiz opens two sessions and one stays empty. Real users who leave mid-quiz also leave a session without an `end_time`.
+- **More sessions than answers.** Until the minor-bugs fix, React StrictMode ran the quiz page's start-up effect twice
+  in development, so each quiz opened two sessions and one stayed empty; the page now starts one. Real users who leave
+  mid-quiz still leave a session without an `end_time`.
 - **Old rows show old behaviour.** Attempt 90 was served at level 3 while the ramp said level 1. That was the hero-fallback bug fixed in PR #7. Attempt 88 shows the old BKT-threshold strategy. The log is append-only, so history keeps the behaviour of its time. That is useful for audits.
 
 ---
@@ -388,7 +389,7 @@ These are real. Each one has the answer to give.
 | 6 | **Two duplicate fields.** `mastery_score` is just P(L)×100. In the seeded demo rows it even holds accuracy (Bruce: graphing 87.5 vs P(L) 0.89). `student_profiles.p_know` is just the last topic's P(L). | `topic_progress`, `student_profiles` | "Legacy columns from before per-topic BKT; screens compute from `p_know` per topic. They can be dropped in a migration." |
 | 7 | **Sessions don't store their topic**: the topic is sent with each request. | `learning_sessions` | "Adding a `topic` column would let the server reject mixed-topic sessions." |
 | 8 | **Parent linking needs no consent from the child's side**: any parent account can link any student email. | `ParentService.linkChild` | "Fine for a demo; production needs an invite code from the student or teacher, like class join codes." |
-| 9 | **Redundant index** `idx_users_email`, because the UNIQUE constraint already creates one. | V1 | minor |
+| 9 | ~~**Redundant index** `idx_users_email`~~ **Fixed (V15):** dropped; the UNIQUE constraint's own index (`users_email_key`) serves the login lookup. | V1, V15 | minor |
 | 10 | **P(L) is rounded to 2 decimals before it is stored**, so tiny changes are lost over many answers. | `BktUpdateResult` | minor; store full precision and round for display. |
 
 ---
@@ -472,7 +473,7 @@ Only children linked in `parent_student_links`. Creating a link needs no approva
 - **SET NULL:** questions the user generated keep existing with `created_by_user_id` = NULL, and attempts keep existing with `session_id` = NULL if only the session is deleted.
 
 **Q19. How do schema changes reach production?**
-Flyway. Each change is a new numbered SQL file (V1–V14). On start-up the app applies any that haven't run and records them in `flyway_schema_history`. Hibernate only validates. The same files build the test database (Testcontainers), the local Docker database and Neon.
+Flyway. Each change is a new numbered SQL file (V1–V15). On start-up the app applies any that haven't run and records them in `flyway_schema_history`. Hibernate only validates. The same files build the test database (Testcontainers), the local Docker database and Neon.
 
 **Q20. How is AI-generated content kept out of students' quizzes until checked?**
 It is saved with `status = PENDING` and `source = LLM`, with provenance (model, prompt version, who asked). Every student query filters `status = APPROVED`, and only a teacher action sets APPROVED.

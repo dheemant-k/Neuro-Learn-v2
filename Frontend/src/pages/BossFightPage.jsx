@@ -84,17 +84,30 @@ export default function BossFightPage({ character, chapter, bossConfig, onVictor
 
   const startRef = useRef(Date.now());
 
+  // Start-up runs once per (boss, hero): React StrictMode mounts effects twice in development, which
+  // used to open a second, empty boss session.
+  const initRef = useRef({ key: null, promise: null });
+
   // 1. Fetch Final Boss questions & start session
   useEffect(() => {
     let mounted = true;
+    const key = `${bossTopic}|${heroId}`;
+    if (initRef.current.key !== key) {
+      initRef.current = {
+        key,
+        promise: Promise.all([
+          startLearningSession({ topic: bossTopic }).catch(() => null),
+          fetchQuestions({ topic: bossTopic, character: heroId }),
+        ]),
+      };
+    }
 
     async function initBossBattle() {
       setLoading(true);
       try {
-        const sessionRes = await startLearningSession({ topic: bossTopic }).catch(() => null);
+        const [sessionRes, qList] = await initRef.current.promise;
         if (mounted && sessionRes) setSessionId(sessionRes.id);
 
-        const qList = await fetchQuestions({ topic: bossTopic, character: heroId });
         if (mounted && qList && qList.length > 0) {
           setQuestions(qList);
           displayBossQuestion(qList[0]);

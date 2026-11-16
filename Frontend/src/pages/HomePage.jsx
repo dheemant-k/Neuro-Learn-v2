@@ -7,6 +7,8 @@ import { useAuth } from "../context/AuthContext";
 export default function HomePage({ selectedCharacter, onSelectCharacter, onSelectChapter, onDashboard, onGoAuth }) {
   const [charPick, setCharPick] = useState(selectedCharacter?.id || "superman");
   const { user, isAuthenticated, logout } = useAuth();
+  // Quests are student-only (the API refuses others), so teachers and parents get their dashboard instead.
+  const isStaff = isAuthenticated && user?.role && user.role !== "STUDENT";
 
   const handleStart = (chapter) => {
     if (!charPick) return;
@@ -67,12 +69,14 @@ export default function HomePage({ selectedCharacter, onSelectCharacter, onSelec
                 Story-based quests with your favourite characters. Difficulty that adapts to every answer.
               </p>
               <div className="mt-10 flex items-center gap-4 flex-wrap">
-                <button
-                  onClick={() => document.getElementById("characters")?.scrollIntoView({ behavior: "smooth" })}
-                  className="px-7 py-3 rounded-xl bg-[rgb(94,234,212)] text-slate-900 font-semibold hover:brightness-110 transition shadow-lg"
-                >
-                  Choose Your Hero
-                </button>
+                {!isStaff && (
+                  <button
+                    onClick={() => document.getElementById("characters")?.scrollIntoView({ behavior: "smooth" })}
+                    className="px-7 py-3 rounded-xl bg-[rgb(94,234,212)] text-slate-900 font-semibold hover:brightness-110 transition shadow-lg"
+                  >
+                    Choose Your Hero
+                  </button>
+                )}
                 <button
                   onClick={onDashboard}
                   className="px-7 py-3 rounded-xl border-2 border-[rgba(48,68,105,0.9)] bg-[rgba(13,26,58,0.55)] hover:bg-[rgba(13,26,58,0.85)] transition"
@@ -86,6 +90,25 @@ export default function HomePage({ selectedCharacter, onSelectCharacter, onSelec
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-10">
+        {isStaff ? (
+          <section className="mt-2 rounded-3xl border-2 border-[rgba(51,65,85,0.85)] bg-[rgba(15,23,42,0.72)] p-8 shadow-lg">
+            <div className="pixel-heading text-2xl md:text-3xl">
+              {user.role === "TEACHER" ? "Your classes are waiting" : "Follow your child's progress"}
+            </div>
+            <p className="mt-3 text-slate-300/90 max-w-2xl">
+              {user.role === "TEACHER"
+                ? "Quests are played from student accounts. Your dashboard has your classes, each student's progress, and the question bank."
+                : "Quests are played from student accounts. Your portal shows each linked child's progress and report card."}
+            </p>
+            <button
+              onClick={onDashboard}
+              className="mt-6 px-7 py-3 rounded-xl bg-[rgb(94,234,212)] text-slate-900 font-semibold hover:brightness-110 transition shadow-lg"
+            >
+              {user.role === "TEACHER" ? "Open Teacher Dashboard →" : "Open Parent Portal →"}
+            </button>
+          </section>
+        ) : (
+        <>
         {/* Character Selection */}
         <section id="characters" className="mt-2">
           <div className="pixel-heading text-2xl md:text-3xl">Choose Your Hero</div>
@@ -162,6 +185,8 @@ export default function HomePage({ selectedCharacter, onSelectCharacter, onSelec
             ))}
           </div>
         </section>
+        </>
+        )}
       </main>
 
       <PixelFooter />

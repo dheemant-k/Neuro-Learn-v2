@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getDashboard,
   fetchTeacherAnalytics,
@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import QuestionBankPanel from "../components/QuestionBankPanel";
 import { SECTION_TITLES } from "../data/chapters";
+import { useEscapeKey } from "../utils/useEscapeKey";
 
 export default function DashboardPage({ onBack }) {
   const { user } = useAuth();
@@ -231,16 +232,26 @@ function TeacherDashboard() {
     }
   };
 
+  // Only the latest Inspect request may fill the dialog (a slow earlier one must not overwrite it).
+  const inspectSeq = useRef(0);
   const handleInspect = (student) => {
+    const seq = ++inspectSeq.current;
     setInspecting(student.studentProfileId);
     setStudentName(student.name);
     setStudentDash(null);
     setLoadingStudent(true);
     fetchTeacherStudentDashboard(student.studentProfileId)
-      .then(setStudentDash)
-      .catch(() => setStudentDash(null))
-      .finally(() => setLoadingStudent(false));
+      .then((d) => { if (seq === inspectSeq.current) setStudentDash(d); })
+      .catch(() => { if (seq === inspectSeq.current) setStudentDash(null); })
+      .finally(() => { if (seq === inspectSeq.current) setLoadingStudent(false); });
   };
+  const closeInspect = () => {
+    inspectSeq.current++;
+    setInspecting(null);
+    setStudentDash(null);
+    setLoadingStudent(false);
+  };
+  useEscapeKey(Boolean(inspecting), closeInspect);
 
   const classPanel = (
     <ClassPanel
@@ -392,11 +403,11 @@ function TeacherDashboard() {
 
       {/* Student Drill-Down Modal */}
       {inspecting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="w-full max-w-2xl rounded-2xl border-2 border-sky-500/40 bg-[rgba(13,26,58,0.97)] p-6 max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4" onClick={closeInspect}>
+          <div role="dialog" aria-modal="true" aria-label={`Inspecting ${studentName}`} onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl rounded-2xl border-2 border-sky-500/40 bg-[rgba(13,26,58,0.97)] p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="pixel-heading text-lg">🔍 Inspecting: {studentName}</div>
-              <button onClick={() => { setInspecting(null); setStudentDash(null); }} className="text-slate-400 hover:text-white text-xl">✕</button>
+              <button onClick={closeInspect} aria-label="Close" className="text-slate-400 hover:text-white text-xl">✕</button>
             </div>
             {loadingStudent ? <LoadingSpinner label="Loading student data..." /> : studentDash ? (
               <StudentDashInspector data={studentDash} />
@@ -659,16 +670,26 @@ function ParentDashboard() {
     }
   };
 
+  // Only the latest report-card request may fill the dialog.
+  const reportSeq = useRef(0);
   const handleViewReport = (child) => {
     if (!child.studentProfileId) return;
+    const seq = ++reportSeq.current;
     setSelectedChild(child);
     setReportCard(null);
     setLoadingCard(true);
     fetchChildReportCard(child.studentProfileId)
-      .then(setReportCard)
-      .catch(() => setReportCard(null))
-      .finally(() => setLoadingCard(false));
+      .then((c) => { if (seq === reportSeq.current) setReportCard(c); })
+      .catch(() => { if (seq === reportSeq.current) setReportCard(null); })
+      .finally(() => { if (seq === reportSeq.current) setLoadingCard(false); });
   };
+  const closeReport = () => {
+    reportSeq.current++;
+    setSelectedChild(null);
+    setReportCard(null);
+    setLoadingCard(false);
+  };
+  useEscapeKey(Boolean(selectedChild), closeReport);
 
   return (
     <>
@@ -746,11 +767,11 @@ function ParentDashboard() {
 
       {/* Report Card Modal */}
       {selectedChild && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="w-full max-w-2xl rounded-2xl border-2 border-indigo-500/40 bg-[rgba(13,26,58,0.97)] p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4" onClick={closeReport}>
+          <div role="dialog" aria-modal="true" aria-label={`Report card for ${selectedChild.name}`} onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl rounded-2xl border-2 border-indigo-500/40 bg-[rgba(13,26,58,0.97)] p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <div className="pixel-heading text-lg">📋 Report Card: {selectedChild.name}</div>
-              <button onClick={() => { setSelectedChild(null); setReportCard(null); }} className="text-slate-400 hover:text-white text-xl">✕</button>
+              <button onClick={closeReport} aria-label="Close" className="text-slate-400 hover:text-white text-xl">✕</button>
             </div>
             {loadingCard ? <LoadingSpinner label="Building report card..." /> : reportCard ? (
               <ReportCardView card={reportCard} sectionTitleMap={sectionTitleMap} />

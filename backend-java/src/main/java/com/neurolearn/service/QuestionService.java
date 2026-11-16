@@ -22,29 +22,30 @@ public class QuestionService {
         return getQuestions(topic, difficulty, null);
     }
 
+    /**
+     * Approved questions for a topic (and level, if given). With a hero theme, that hero's questions come
+     * first, then the sister hero's (Supergirl/Superman), then everyone else's. The list is never cut to
+     * one theme: a boss fight needs at least 4 questions to be winnable, and some heroes have fewer
+     * (the Chapter 2 boss had 1–3 per hero, so it could not be beaten).
+     */
     public List<QuestionResponse> getQuestions(String topic, Integer difficulty, String characterTheme) {
         List<Question> questions;
-        if (characterTheme != null && !characterTheme.isBlank()) {
-            if (topic != null && !topic.isBlank() && difficulty != null) {
-                questions = questionRepository.findByTopicAndDifficultyAndCharacterTheme(topic, difficulty, characterTheme);
-            } else if (topic != null && !topic.isBlank()) {
-                questions = questionRepository.findByTopicAndCharacterTheme(topic, characterTheme);
-            } else {
-                questions = questionRepository.findAllApproved().stream()
-                        .filter(q -> characterTheme.equalsIgnoreCase(q.getCharacterTheme()))
-                        .collect(Collectors.toList());
-            }
-            if (questions.isEmpty()) {
-                return getQuestions(topic, difficulty, null);
-            }
+        if (topic != null && !topic.isBlank() && difficulty != null) {
+            questions = questionRepository.findByTopicAndDifficulty(topic, difficulty);
+        } else if (topic != null && !topic.isBlank()) {
+            questions = questionRepository.findByTopic(topic);
         } else {
-            if (topic != null && !topic.isBlank() && difficulty != null) {
-                questions = questionRepository.findByTopicAndDifficulty(topic, difficulty);
-            } else if (topic != null && !topic.isBlank()) {
-                questions = questionRepository.findByTopic(topic);
-            } else {
-                questions = questionRepository.findAllApproved();
-            }
+            questions = questionRepository.findAllApproved();
+        }
+        if (characterTheme != null && !characterTheme.isBlank()) {
+            String theme = characterTheme.trim().toLowerCase(java.util.Locale.ROOT);
+            String sister = LearningSessionService.SISTER_THEME.get(theme);
+            questions = questions.stream()
+                    .sorted(java.util.Comparator.comparingInt((Question q) -> {
+                        String t = q.getCharacterTheme() == null ? "" : q.getCharacterTheme().toLowerCase(java.util.Locale.ROOT);
+                        return t.equals(theme) ? 0 : t.equals(sister) ? 1 : 2;
+                    }))
+                    .collect(Collectors.toList());
         }
         return questions.stream().map(QuestionResponse::forStudent).collect(Collectors.toList());
     }

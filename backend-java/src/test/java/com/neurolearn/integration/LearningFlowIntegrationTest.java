@@ -126,6 +126,26 @@ class LearningFlowIntegrationTest extends IntegrationTestBase {
         }
     }
 
+    @Test
+    void everyHeroGetsEnoughBossQuestionsToWinWithTheirOwnFirst() throws Exception {
+        String token = login(STUDENT);
+        for (String boss : List.of("final_boss", "quad_final_boss")) {
+            for (String hero : List.of("batman", "superman", "supergirl")) {
+                JsonNode list = getJson("/api/questions?topic=" + boss + "&characterTheme=" + hero, token);
+                // A win needs 4 correct answers; the Chapter 2 boss used to give some heroes only 1-3 questions.
+                assertThat(list.size()).as(boss + " / " + hero).isGreaterThanOrEqualTo(5);
+                // Own hero first, then the rest; nothing in between is dropped.
+                boolean seenOther = false;
+                for (JsonNode q : list) {
+                    assertThat(q.get("topic").asText()).isEqualTo(boss);
+                    boolean own = hero.equals(q.get("characterTheme").asText());
+                    if (!own) seenOther = true;
+                    assertThat(own && seenOther).as("own-hero question after another hero's").isFalse();
+                }
+            }
+        }
+    }
+
     /** Answers {@code correct} boss questions right and {@code wrong} wrong in a fresh boss session. */
     private long fightBoss(String token, int correct, int wrong) throws Exception {
         long sessionId = postJson("/api/sessions/start", token, Map.of("topic", "final_boss")).get("id").asLong();
